@@ -1,0 +1,942 @@
+/* SISTEMA DE ESTILOS - TACTICAL HUD */
+
+:root {
+  --bg-primary: #040810;
+  --bg-secondary: rgba(8, 14, 26, 0.82);
+  --bg-glass: rgba(10, 18, 36, 0.75);
+  --border-color: rgba(16, 185, 129, 0.25);
+  --border-color-glow: rgba(16, 185, 129, 0.6);
+  
+  /* Colores de Señal/Acento */
+  --neon-green: #10b981;
+  --neon-green-glow: rgba(16, 185, 129, 0.4);
+  --neon-cyan: #06b6d4;
+  --neon-cyan-glow: rgba(6, 182, 212, 0.4);
+  --neon-yellow: #f59e0b;
+  --neon-red: #ef4444;
+  --neon-red-glow: rgba(239, 68, 68, 0.4);
+  --neon-purple: #8b5cf6;
+  --text-primary: #e2e8f0;
+  --text-secondary: #64748b;
+  --text-dark: #020617;
+  
+  --font-mono: 'Share Tech Mono', monospace;
+  --transition-speed: 0.3s;
+}
+
+/* Reset de Estilos */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  /* cursor: crosshair; */
+}
+
+/* Contenedor de Canvas 3D */
+#canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  touch-action: none;
+}
+
+/* EFECTOS HUD: Rejilla y Scanlines */
+.hud-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: center;
+  z-index: 2;
+}
+
+.hud-grid::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  border: 1px solid rgba(16, 185, 129, 0.06);
+  pointer-events: none;
+}
+
+.hud-scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.15) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.02),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.02)
+  );
+  background-size: 100% 4px, 3px 100%;
+  z-index: 999; /* Sobre todo */
+}
+
+/* Cursor Táctico Personalizado (se puede desactivar/activar si se prefiere) */
+#tactical-cursor {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--neon-cyan);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  display: none; /* Se activa con JS si se desea */
+}
+#tactical-cursor::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 1px;
+  background-color: var(--neon-cyan);
+  transform: translate(-50%, -50%);
+}
+#tactical-cursor::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1px;
+  height: 8px;
+  background-color: var(--neon-cyan);
+  transform: translate(-50%, -50%);
+}
+
+/* Tooltip Flotante */
+#tooltip {
+  position: absolute;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--neon-green);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 900;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+  transform: translate(15px, 15px);
+  transition: opacity 0.15s ease;
+}
+#tooltip.hidden {
+  opacity: 0;
+  display: none;
+}
+
+/* BARRA SUPERIOR (HEADER) */
+.hud-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 65px;
+  background: linear-gradient(to bottom, rgba(4, 8, 16, 0.95) 80%, rgba(4, 8, 16, 0));
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 10;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.military-crest {
+  width: 42px;
+  height: 42px;
+}
+.crest-svg {
+  width: 100%;
+  height: 100%;
+  animation: rotation 20s linear infinite;
+}
+
+.header-title-block h1 {
+  font-size: 19px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: var(--neon-green);
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.header-title-block .subtitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  margin-top: 1px;
+}
+
+.header-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--neon-green);
+  letter-spacing: 1px;
+}
+
+.status-blink {
+  width: 6px;
+  height: 6px;
+  background-color: var(--neon-green);
+  border-radius: 50%;
+  animation: pulse 1s infinite alternate;
+}
+
+.clock-display {
+  font-size: 16px;
+  color: var(--text-primary);
+  margin-top: 3px;
+  letter-spacing: 1.5px;
+  font-weight: bold;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.connection-status {
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  text-align: right;
+  border-left: 1px solid var(--border-color);
+  padding-left: 15px;
+}
+.connection-status .label {
+  color: var(--text-secondary);
+}
+.connection-status .value {
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* BOTONES TÁCTICOS */
+.hud-btn {
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 10px 16px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  clip-path: polygon(0 0, 92% 0, 100% 25%, 100% 100%, 8% 100%, 0 75%);
+}
+
+.hud-btn:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+  box-shadow: 0 0 10px var(--neon-green-glow);
+}
+
+.hud-btn.glow-cyan {
+  border-color: rgba(6, 182, 212, 0.4);
+}
+.hud-btn.glow-cyan:hover {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  box-shadow: 0 0 10px var(--neon-cyan-glow);
+}
+
+.hud-btn.w-100 {
+  width: 100%;
+}
+
+.hud-btn-mini {
+  background: rgba(16, 185, 129, 0.03);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.hud-btn-mini:hover {
+  border-color: var(--neon-green);
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--neon-green);
+}
+
+/* ESTRUCTURA DE BARRAS LATERALES */
+.hud-sidebar {
+  position: absolute;
+  top: 75px;
+  bottom: 120px;
+  width: 320px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(12px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  transition: transform var(--transition-speed) cubic-bezier(0.16, 1, 0.3, 1), opacity var(--transition-speed);
+}
+
+.left-sidebar {
+  left: 20px;
+  border-left: 2px solid var(--neon-green);
+}
+
+.right-sidebar {
+  top: 50%;
+  left: 50%;
+  bottom: auto;
+  right: auto;
+  width: 500px;
+  max-width: 90%;
+  max-height: 85vh;
+  transform: translate(-50%, -50%);
+  border-right: 1px solid var(--border-color);
+  border-top: 3px solid var(--neon-green);
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.8);
+  border-radius: 4px;
+}
+
+.right-sidebar.hidden {
+  transform: translate(-50%, -45%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-header {
+  padding: 15px;
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+}
+
+.sidebar-header h2 {
+  font-size: 15px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  color: var(--neon-green);
+}
+
+.close-btn {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 22px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.close-btn:hover {
+  color: var(--neon-red);
+}
+
+.school-logo {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.4));
+}
+
+.sidebar-section {
+  padding: 15px;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.sidebar-section h3 {
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+/* BUSCADOR */
+.search-box {
+  position: relative;
+  width: 100%;
+}
+
+.search-box input {
+  width: 100%;
+  background: rgba(4, 8, 16, 0.8);
+  border: 1px solid var(--border-color);
+  padding: 10px 10px 10px 32px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  transition: all 0.3s;
+}
+.search-box input:focus {
+  outline: none;
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.2);
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* FILTROS DE ESPECIALIDAD */
+.specialty-filters {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.filter-btn {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  padding: 10px 12px;
+  min-height: 44px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-left: 2px solid transparent;
+}
+.filter-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.filter-btn.active {
+  color: var(--text-primary);
+  border-color: var(--btn-color, var(--neon-green));
+  border-left-width: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 3px 0 0 var(--btn-color, var(--neon-green));
+}
+.filter-btn[data-specialty="all"].active {
+  --btn-color: var(--neon-green);
+}
+
+.filter-btn::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--btn-color, var(--text-secondary));
+}
+.filter-btn[data-specialty="all"]::before {
+  background-color: var(--neon-green);
+}
+
+/* LISTA DE SECTORES */
+.list-section {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.department-list-container {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-top: 5px;
+  padding-right: 5px;
+}
+
+.hud-list {
+  list-style: none;
+}
+
+.hud-list li {
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  margin-bottom: 4px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.hud-list li:hover {
+  background: rgba(16, 185, 129, 0.06);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: var(--neon-green);
+}
+
+.hud-list li.active {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid var(--border-color-glow);
+  color: var(--neon-green);
+  font-weight: bold;
+}
+
+.hud-list li .dept-count {
+  font-size: 10px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 2px 6px;
+  border-radius: 10px;
+  color: var(--neon-green);
+}
+
+.hud-list li.active .dept-count {
+  background: var(--neon-green);
+  color: var(--text-dark);
+}
+
+/* PANELES DE DETALLE (DERECHO) - PESTAÑAS */
+.details-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(4, 8, 16, 0.4);
+}
+
+.tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 10px 5px;
+  min-height: 44px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+.tab-btn.active {
+  color: var(--neon-green);
+  border-bottom-color: var(--neon-green);
+  background: rgba(16, 185, 129, 0.05);
+  font-weight: bold;
+}
+
+.details-content-container {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 15px;
+}
+
+.tab-pane {
+  display: none;
+  animation: fadeIn 0.4s ease forwards;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+/* PESTAÑA ESCUELA: IMAGEN Y DATOS */
+.school-image-container {
+  width: 100%;
+  height: 150px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  margin-bottom: 15px;
+}
+
+.school-image-container video,
+.school-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to top, rgba(4, 8, 16, 0.9) 20%, rgba(4, 8, 16, 0.2));
+}
+
+.school-motto {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  text-align: center;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--neon-yellow);
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  letter-spacing: 1px;
+}
+
+.school-data-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 8px;
+  margin-bottom: 15px;
+  background: rgba(4, 8, 16, 0.5);
+  padding: 10px;
+  border: 1px dashed rgba(16, 185, 129, 0.15);
+}
+
+.data-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.data-label {
+  color: var(--text-secondary);
+}
+
+.data-value {
+  font-weight: bold;
+}
+
+.school-description {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  text-align: justify;
+}
+
+/* PESTAÑA HÉROE */
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.hero-img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  object-position: top;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 4px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.hero-text {
+  padding-top: 5px;
+  border-top: 1px dashed rgba(16, 185, 129, 0.2);
+}
+
+.hero-title {
+  font-size: 16px;
+  color: var(--neon-yellow);
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+  margin-bottom: 2px;
+}
+
+.hero-subtitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.hero-bio {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  text-align: justify;
+}
+
+/* PESTAÑA TÁCTICA: RADAR CHART */
+.radar-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-top: 10px;
+}
+
+#radar-canvas {
+  background: rgba(4, 8, 16, 0.3);
+}
+
+/* PESTAÑA MONITOR: SIMULACIÓN VIDEO TÁCTICO */
+.section-desc {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.monitor-container {
+  width: 100%;
+  border: 1px solid var(--border-color-glow);
+  position: relative;
+  background-color: #010408;
+  margin-bottom: 10px;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+}
+
+#monitor-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.monitor-overlay {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 10px;
+  color: var(--neon-red);
+  font-weight: bold;
+  text-shadow: 0 0 4px var(--neon-red-glow);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rec-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--neon-red);
+  border-radius: 50%;
+  animation: pulse 0.6s infinite alternate;
+}
+
+.monitor-controls {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+.monitor-telemetry {
+  background: rgba(4, 8, 16, 0.6);
+  border: 1px dashed rgba(16, 185, 129, 0.15);
+  padding: 8px 12px;
+  font-size: 11px;
+}
+.monitor-telemetry p {
+  margin-bottom: 3px;
+  display: flex;
+  justify-content: space-between;
+}
+.monitor-telemetry p:last-child {
+  margin-bottom: 0;
+}
+
+.status-ok {
+  color: var(--neon-green);
+  text-align: center;
+  font-weight: bold;
+}
+
+/* SIDEBAR FOOTER (BOTÓN ACCIÓN) */
+.sidebar-footer {
+  padding: 15px;
+  border-top: 1px solid var(--border-color);
+  background: rgba(4, 8, 16, 0.4);
+}
+
+/* CONSOLA DE DIAGNÓSTICO (INFERIOR) */
+.hud-console {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  height: 90px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-color);
+  border-bottom: 2px solid var(--neon-green);
+  backdrop-filter: blur(12px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.5);
+}
+
+.console-header {
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(4, 8, 16, 0.6);
+}
+
+.console-title {
+  font-size: 10px;
+  color: var(--neon-green);
+  letter-spacing: 1px;
+}
+
+.console-coords {
+  font-size: 10px;
+  color: var(--neon-cyan);
+}
+
+.console-body {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.log-line {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+  animation: slideLog 0.2s ease forwards;
+}
+
+.text-green { color: var(--neon-green); }
+.text-cyan { color: var(--neon-cyan); }
+.text-yellow { color: var(--neon-yellow); }
+.text-red { color: var(--neon-red); }
+
+/* CUSTOM SCROLLBARS */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(4, 8, 16, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-green);
+}
+
+/* ANIMACIONES */
+@keyframes rotation {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideLog {
+  from { transform: translateY(5px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Decoraciones de esquina */
+.corner-decor::before, .corner-decor::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background-color: var(--neon-green);
+}
+.sidebar-header .corner-decor::before { top: 0; left: 0; border-top: 1px solid var(--neon-green); border-left: 1px solid var(--neon-green); background: none; }
+.sidebar-header .corner-decor::after { top: 0; right: 0; border-top: 1px solid var(--neon-green); border-right: 1px solid var(--neon-green); background: none; }
+
+/* Clases Útiles */
+.cyan-text {
+  color: var(--neon-cyan);
+}
+.yellow-text {
+  color: var(--neon-yellow);
+}
+
+/* Media Queries para Pantallas Pequeñas */
+@media (max-width: 1024px) {
+  .hud-sidebar {
+    width: 280px;
+  }
+}
+@media (max-width: 768px) {
+  .hud-sidebar {
+    position: fixed;
+    top: 70px;
+    bottom: 120px;
+    width: 90%;
+    max-width: 320px;
+  }
+  .left-sidebar {
+    left: 5%;
+  }
+  .right-sidebar {
+    top: 50%;
+    left: 50%;
+    bottom: auto;
+    width: 90%;
+    max-width: 500px;
+    transform: translate(-50%, -50%);
+  }
+  .right-sidebar.hidden {
+    transform: translate(-50%, -40%);
+  }
+}

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sistema de Información Táctica - Escuelas del Ejército del Perú</title>
+  <meta name="description" content="Mapa interactivo 3D de los departamentos del Perú y la ubicación geográfica de las Escuelas de Especialidades del Ejército. Desarrollado con Three.js y estética digital HUD militar.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;">
+  <!-- Escena 3D de Three.js -->
+  <div id="canvas-container"></div>
+  
+  <!-- Overlay de Red Cuadrícula del HUD -->
+  <div class="hud-grid"></div>
+  <div class="hud-scanlines"></div>
+
+  <!-- Cursor Táctico Personalizado (Crosshair) -->
+  <div id="tactical-cursor"></div>
+
+  <!-- Tooltip flotante para departamentos y escuelas -->
+  <div id="tooltip" class="hidden"></div>
+
+  <!-- PANEL SUPERIOR: Barra de Control e Información General -->
+  <header class="hud-header">
+    <div class="header-left">
+      <div class="military-crest">
+        <svg viewBox="0 0 100 100" class="crest-svg">
+          <polygon points="50,5 90,25 90,75 50,95 10,75 10,25" fill="none" stroke="var(--neon-green)" stroke-width="2"/>
+          <line x1="50" y1="5" x2="50" y2="95" stroke="var(--neon-green)" stroke-width="1" stroke-dasharray="3,3"/>
+          <circle cx="50" cy="50" r="15" fill="none" stroke="var(--neon-green)" stroke-width="1.5"/>
+          <path d="M35,50 L65,50 M50,35 L50,65" stroke="var(--neon-green)" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="header-title-block">
+        <h1>SISTEMA DE INFORMACIÓN TÁCTICA v2.6</h1>
+        <p class="subtitle">EJÉRCITO DEL PERÚ • COMANDO DE EDUCACIÓN Y DOCTRINA (COEDE)</p>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="status-indicator">
+        <span class="status-blink"></span>
+        <span class="status-text">ESCANEO DE SECTORES ACTIVO</span>
+      </div>
+      <div class="clock-display" id="hud-clock">00:00:00:00</div>
+    </div>
+    <div class="header-right">
+      <button id="btn-audio" class="hud-btn glow-green" aria-label="Alternar Audio">
+        <span class="btn-icon">🔊</span> AUDIO: <span id="audio-status">ON</span>
+      </button>
+      <button id="btn-reset" class="hud-btn glow-cyan" aria-label="Restablecer Cámara">
+        VISTA GLOBAL
+      </button>
+      <div class="connection-status">
+        <span class="label">ENLACE:</span>
+        <span class="value cyan-text">SEGURO</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- PANEL IZQUIERDO REMOVIDO -->
+
+  <!-- PANEL DERECHO: Detalle de la Escuela Activa -->
+  <aside class="hud-sidebar right-sidebar hidden" id="panel-details">
+    <div class="sidebar-header" style="display: flex; align-items: center; gap: 10px;">
+      <button id="btn-close-details" class="close-btn" aria-label="Cerrar detalles">✕</button>
+      <img id="school-logo" class="school-logo hidden" src="" alt="Logo de Escuela">
+      <h2 id="detail-title">DETALLES DE ESCUELA</h2>
+      <div class="corner-decor"></div>
+    </div>
+
+    <!-- Pestañas de Navegación -->
+    <div class="details-tabs">
+      <button class="tab-btn active" data-tab="escuela">ESCUELA</button>
+      <button class="tab-btn" data-tab="heroe">HÉROE</button>
+      <button class="tab-btn" data-tab="tactica">TÁCTICA</button>
+      <button class="tab-btn" data-tab="monitor">MONITOR</button>
+    </div>
+
+    <div class="details-content-container">
+      <!-- PESTAÑA 1: Información de la Escuela -->
+      <section id="tab-escuela" class="tab-pane active">
+        <div class="sidebar-section no-pad">
+          <div class="school-image-container">
+            <video id="school-video" class="hidden" autoplay loop muted playsinline></video>
+            <img id="school-img" src="" alt="Imagen de Escuela">
+            <div class="image-overlay"></div>
+          </div>
+        </div>
+        <div class="school-motto" id="school-motto">"Siempre Alerta"</div>
+        <div class="school-data-grid">
+          <div class="data-item">
+            <span class="data-label">ESPECIALIDAD:</span>
+            <span class="data-value" id="school-specialty">-</span>
+          </div>
+          <div class="data-item">
+            <span class="data-label">SECTOR:</span>
+            <span class="data-value cyan-text" id="school-dept">-</span>
+          </div>
+          <div class="data-item">
+            <span class="data-label">FUNDADA:</span>
+            <span class="data-value" id="school-founded">-</span>
+          </div>
+        </div>
+        <div class="school-description">
+          <p id="school-desc">-</p>
+        </div>
+      </section>
+
+      <!-- PESTAÑA 2: Biografía del Héroe Patrono -->
+      <section id="tab-heroe" class="tab-pane">
+        <div class="hero-content">
+          <img id="hero-img" class="hero-img hidden" src="" alt="Héroe">
+          <div class="hero-text">
+            <h4 class="hero-title" id="hero-name"></h4>
+            <div class="hero-subtitle" id="hero-title"></div>
+            <p class="hero-bio" id="hero-bio"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- PESTAÑA 3: Estadísticas / Gráfico de Radar -->
+      <section id="tab-tactica" class="tab-pane">
+        <h3>ATRIBUTOS OPERACIONALES</h3>
+        <p class="section-desc">Evaluación porcentual de capacidades tácticas y de combate del arma.</p>
+        <div class="radar-container">
+          <canvas id="radar-canvas" width="280" height="280"></canvas>
+        </div>
+      </section>
+
+      <!-- PESTAÑA 4: Monitor / Simulador de Video Táctico -->
+      <section id="tab-monitor" class="tab-pane">
+        <h3>ALIMENTACIÓN EN VIVO (DRON / SATÉLITE)</h3>
+        <p class="section-desc">Telemetría de reconocimiento térmico en tiempo real en la zona de operaciones.</p>
+        <div class="monitor-container">
+          <canvas id="monitor-canvas" width="300" height="180"></canvas>
+          <div class="monitor-overlay">
+            <span class="rec-dot"></span> REC FEED 04
+          </div>
+          <div class="monitor-controls">
+            <button id="btn-thermal-toggle" class="hud-btn-mini">CONMUTAR TERMOGRÁFICO</button>
+            <button id="btn-monitor-reset" class="hud-btn-mini">RECALIBRAR</button>
+          </div>
+        </div>
+        <div class="monitor-telemetry">
+          <p>ALT: <span id="telemetry-alt">4,200m</span> | SPD: <span id="telemetry-spd">120 km/h</span></p>
+          <p>TARGET LAT: <span id="telemetry-lat">-12.162</span> | LNG: <span id="telemetry-lng">-77.021</span></p>
+          <p class="status-ok">SEÑAL: ENCRIPTADA Y ESTABLE</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- Botón de Acción Inferior removido -->
+  </aside>
+
+  <!-- PANEL INFERIOR REMOVIDO -->
+
+  <!-- Scripts -->
+  <!-- Carga de Three.js desde CDN -->
+  <script src="app.js" type="module"></script>
+</body>
+</html>

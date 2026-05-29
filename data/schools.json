@@ -1,0 +1,213 @@
+[
+  {
+    "id": "infanteria",
+    "name": "Escuela de Infantería del Ejército",
+    "specialty": "Infantería",
+    "specialty_key": "infantry",
+    "color": "#ef4444",
+    "coords": { "lat": -12.162, "lng": -77.021 },
+    "department": "Lima",
+    "motto": "Paso de Vencedores",
+    "founded": 1904,
+    "description": "El alma mater de los combatientes de a pie. Su misión es capacitar y perfeccionar al personal de oficiales en el planeamiento, conducción y ejecución de operaciones tácticas terrestres bajo cualquier condición climatológica y de terreno.",
+    "hero": {
+      "name": "Mariscal Andrés Avelino Cáceres",
+      "title": "El Brujo de los Andes",
+      "bio": "Héroe nacional y patrono del Arma de Infantería. Lideró la legendaria resistencia en la Campaña de la Breña durante la Guerra del Pacífico, utilizando tácticas de guerrilla y gran movilidad en la cordillera andina para doblegar a fuerzas enemigas superiores.",
+      "image": "assets/images/heroes/caceres.jpg"
+    },
+    "image": "assets/images/infantry.jpg",
+    "logo": "assets/images/logos/infantery.png",
+    "video": "assets/images/videos/infantery.mp4",
+    "stats": {
+      "Táctica": 95,
+      "Combate": 98,
+      "Tecnología": 75,
+      "Movilidad": 85,
+      "Supervivencia": 90
+    }
+  },
+  {
+    "id": "caballeria",
+    "name": "Escuela de Caballería y Blindados",
+    "specialty": "Caballería",
+    "specialty_key": "cavalry",
+    "color": "#0ea5e9",
+    "coords": { "lat": -17.615, "lng": -70.762 },
+    "department": "Tacna",
+    "motto": "¡A la Carga, Húsares!",
+    "founded": 1912,
+    "description": "Centro especializado en operaciones de maniobra rápida, asalto blindado y reconocimiento mecanizado. Desarrolla las destrezas de combate móvil en terrenos desérticos y planos del territorio nacional.",
+    "hero": {
+      "name": "Mariscal Ramón Castilla",
+      "title": "El Libertador",
+      "bio": "Presidente del Perú y patrono del Arma de Caballería. Destacó por sus audaces maniobras ecuestres en batallas cruciales como Ayacucho y Junín, consolidando la independencia de América del Sur gracias a la velocidad y contundencia del arma de caballería."
+    },
+    "image": "assets/images/cavalry.jpg",
+    "logo": "assets/images/logos/cavalry.png",
+    "stats": {
+      "Táctica": 88,
+      "Combate": 92,
+      "Tecnología": 85,
+      "Movilidad": 98,
+      "Supervivencia": 70
+    }
+  },
+  {
+    "id": "artilleria",
+    "name": "Escuela de Artillería del Ejército",
+    "specialty": "Artillería",
+    "specialty_key": "artillery",
+    "color": "#e11d48",
+    "coords": { "lat": -16.402, "lng": -71.537 },
+    "department": "Arequipa",
+    "motto": "Fuerza y Valor para la Victoria",
+    "founded": 1918,
+    "description": "Responsable de brindar el fuego de apoyo terrestre y defensa antiaérea. Se especializa en balística de precisión, sistemas avanzados de lanzamiento de cohetes y la coordinación de bombardeos de largo alcance para ablandar posiciones enemigas.",
+    "hero": {
+      "name": "Coronel José Joaquín Inclán",
+      "title": "Héroe del Morro de Arica",
+      "bio": "Patrono del Arma de Artillería. Defendió con valor inquebrantable las baterías del Morro de Arica durante la Guerra del Pacífico, manteniendo el fuego artillero activo hasta perder la vida en su puesto de combate en defensa de la soberanía nacional."
+    },
+    "image": "assets/images/artillery.jpg",
+    "logo": "assets/images/logos/artillery.png",
+    "stats": {
+      "Táctica": 90,
+      "Combate": 85,
+      "Tecnología": 95,
+      "Movilidad": 60,
+      "Supervivencia": 80
+    }
+  },
+  {
+    "id": "ingenieria",
+    "name": "Escuela de Ingeniería del Ejército",
+    "specialty": "Ingeniería",
+    "specialty_key": "engineering",
+    "color": "#10b981",
+    "coords": { "lat": -12.164, "lng": -77.023 },
+    "department": "Lima",
+    "motto": "Vencer o Morir",
+    "founded": 1921,
+    "description": "Facilitadores de la movilidad de las fuerzas propias y la contra-movilidad del adversario. Expertos en la construcción de puentes tácticos, fortificaciones, demolición de obstáculos, detección de minas y apoyo en desastres naturales.",
+    "hero": {
+      "name": "Tte. Coronel Pedro Ruiz Gallo",
+      "title": "El Sabio Militar",
+      "bio": "Patrono del Arma de Ingeniería. Inventor, médico y militar peruano de gran ingenio. Construyó el monumental Reloj de Lima y, durante la Guerra del Pacífico, desarrolló minas y torpedos tácticos autopropulsados para la defensa costera del Callao.",
+      "image": "assets/images/heroes/ruiz_gallo.jpg"
+    },
+    "image": "assets/images/engineering.jpg",
+    "logo": "assets/images/logos/ingeenery.png",
+    "stats": {
+      "Táctica": 85,
+      "Combate": 75,
+      "Tecnología": 92,
+      "Movilidad": 70,
+      "Supervivencia": 95
+    }
+  },
+  {
+    "id": "comunicaciones",
+    "name": "Escuela de Comunicaciones del Ejército",
+    "specialty": "Comunicaciones",
+    "specialty_key": "communications",
+    "color": "#f59e0b",
+    "coords": { "lat": -13.531, "lng": -71.967 },
+    "department": "Cusco",
+    "motto": "Siempre Conectados, Siempre Alerta",
+    "founded": 1935,
+    "description": "El sistema nervioso del Ejército. Garantiza el enlace de comando y control en tiempo real mediante sistemas de radio de alta frecuencia, redes satelitales, criptografía segura, ciberdefensa y enlaces tácticos digitales en cualquier geografía del país.",
+    "hero": {
+      "name": "José Olaya Balandra",
+      "title": "El Mensajero de la Libertad",
+      "bio": "Héroe civil y patrono del Arma de Comunicaciones. Pescador chorrillano que sirvió como emisario secreto de los patriotas durante la independencia de Perú, cruzando nados de larga distancia para llevar correspondencia militar. Prefirió la muerte antes que revelar las contraseñas del comando patriota.",
+      "image": "assets/images/heroes/olaya.jpg"
+    },
+    "image": "assets/images/communications.jpg",
+    "logo": "assets/images/logos/comunicaciones.png",
+    "stats": {
+      "Táctica": 80,
+      "Combate": 65,
+      "Tecnología": 98,
+      "Movilidad": 80,
+      "Supervivencia": 85
+    }
+  },
+  {
+    "id": "selva",
+    "name": "Escuela de Operaciones en Selva",
+    "specialty": "Operaciones de Selva",
+    "specialty_key": "special_ops",
+    "color": "#065f46",
+    "coords": { "lat": -3.750, "lng": -73.250 },
+    "department": "Loreto",
+    "motto": "La Selva no pertenece al que la habita, sino al que la domina",
+    "founded": 1968,
+    "description": "Centro especializado en supervivencia, navegación fluvial, infiltración profunda y tácticas de combate en selva densa e inundable. Prepara a las tropas de élite para operar de forma aislada en ambientes hostiles de la amazonía peruana.",
+    "hero": {
+      "name": "Sgto. 2do Fernando Lores Tenazoa",
+      "title": "Héroe de Güeppí",
+      "bio": "Destacado soldado peruano que demostró un heroísmo extraordinario en el Combate de Güeppí (1933) frente a fuerzas hostiles superiores. Defendió con fiereza su puesto, cruzando el río bajo fuego cruzado directo para mantener la línea defensiva antes de perecer gloriosamente."
+    },
+    "image": "assets/images/jungle.jpg",
+    "stats": {
+      "Táctica": 95,
+      "Combate": 95,
+      "Tecnología": 60,
+      "Movilidad": 90,
+      "Supervivencia": 100
+    }
+  },
+  {
+    "id": "montana",
+    "name": "Escuela de Operaciones en Montaña",
+    "specialty": "Operaciones de Montaña",
+    "specialty_key": "special_ops",
+    "color": "#475569",
+    "coords": { "lat": -9.526, "lng": -77.528 },
+    "department": "Ancash",
+    "motto": "El Cóndor Dominador de las Cumbres",
+    "founded": 1974,
+    "description": "Entrenamiento de combate y rescate a grandes altitudes. Se especializa en técnicas de escalada militar, esquí, operaciones invernales en glaciares y cordilleras, navegación en nieve y supervivencia en climas extremos bajo cero.",
+    "hero": {
+      "name": "Coronel Francisco Bolognesi",
+      "title": "Héroe de Arica",
+      "bio": "Gran Patrono del Ejército del Perú. Lideró la defensa de Arica en la Guerra del Pacífico contra fuerzas abrumadoras, inmortalizando la frase 'Tengo deberes sagrados que cumplir y los cumpliré hasta quemar el último cartucho'. Encarna la firmeza inquebrantable semejante a las cumbres andinas.",
+      "image": "assets/images/heroes/bolognesi.jpg"
+    },
+    "image": "assets/images/mountain.jpg",
+    "video": "assets/images/videos/mountain.mp4",
+    "stats": {
+      "Táctica": 92,
+      "Combate": 95,
+      "Tecnología": 70,
+      "Movilidad": 85,
+      "Supervivencia": 98
+    }
+  },
+  {
+    "id": "fuerzas_especiales",
+    "name": "Escuela de Fuerzas Especiales (1ra Brigada)",
+    "specialty": "Fuerzas Especiales",
+    "specialty_key": "special_ops",
+    "color": "#8b5cf6",
+    "coords": { "lat": -6.486, "lng": -76.372 },
+    "department": "San Martín",
+    "motto": "Ser y no Parecer",
+    "founded": 1961,
+    "description": "Forja de comandos, paracaidistas y comandos antiterroristas del Ejército. Capacitados para incursiones rápidas de alta prioridad, operaciones de rescate de rehenes, sabotaje estratégico tras las líneas enemigas e inteligencia táctica de combate.",
+    "hero": {
+      "name": "Capitán EP Alipio Ponce Vásquez",
+      "title": "El Titán de Carcabón",
+      "bio": "Héroe del conflicto de 1941. Destacó en las acciones de Carcabón y Quebrada Seca por su valor temerario liderando ataques sorpresa de comandos que doblegaron las defensas enemigas. Cayó en combate durante un reconocimiento táctico estratégico."
+    },
+    "image": "assets/images/special_ops.jpg",
+    "stats": {
+      "Táctica": 96,
+      "Combate": 98,
+      "Tecnología": 88,
+      "Movilidad": 92,
+      "Supervivencia": 96
+    }
+  }
+]
