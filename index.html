@@ -70,47 +70,113 @@
     </div>
   </header>
 
-  <!-- PANEL IZQUIERDO REMOVIDO -->
+  <!-- BARRA DE NAVEGACIÓN PRINCIPAL (HUD NAV) -->
+  <nav class="hud-nav">
+    <button id="nav-org" class="nav-tab active" data-mode="org">📂 ESTRUCTURA ORGÁNICA</button>
+    <button id="nav-schools" class="nav-tab" data-mode="schools">🛡️ COEDE (ESCUELAS)</button>
+    <button id="nav-history" class="nav-tab" data-mode="history">⏳ HISTORIA DEL EJÉRCITO</button>
+    <button id="nav-cms" class="nav-tab" data-mode="cms">⚙️ ADMINISTRADOR CMS</button>
+  </nav>
 
-  <!-- PANEL DERECHO: Detalle de la Escuela Activa -->
+  <!-- PANEL IZQUIERDO: Navegación y Filtros -->
+  <aside class="hud-sidebar left-sidebar" id="panel-left">
+    <div class="sidebar-header">
+      <h2>SISTEMA DE EXPLORACIÓN</h2>
+      <div class="corner-decor"></div>
+    </div>
+    
+    <!-- Filtros/Buscador (para Modo Escuelas) -->
+    <div id="schools-controls" class="sidebar-section hidden">
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="BUSCAR ACADEMIA..." autocomplete="off">
+        <span class="search-icon">🔍</span>
+      </div>
+      <div class="specialty-filters">
+        <button class="filter-btn active" data-specialty="all">TODOS</button>
+        <button class="filter-btn" data-specialty="infantry">INF</button>
+        <button class="filter-btn" data-specialty="cavalry">CAB</button>
+        <button class="filter-btn" data-specialty="artillery">ART</button>
+        <button class="filter-btn" data-specialty="engineering">ING</button>
+        <button class="filter-btn" data-specialty="communications">COM</button>
+        <button class="filter-btn" data-specialty="special_ops">ESP</button>
+      </div>
+      <ul id="department-list" class="hud-list">
+        <!-- Se llena con app.js -->
+      </ul>
+    </div>
+
+    <!-- Árbol Jerárquico (para Modo Organización) -->
+    <div id="org-controls" class="sidebar-section">
+      <div class="tree-container" id="org-tree">
+        <!-- Árbol de Divisiones -> Brigadas -> Batallones generado dinámicamente -->
+      </div>
+    </div>
+  </aside>
+
+  <!-- PANEL DERECHO: Detalle de la Escuela u Unidad Activa -->
   <aside class="hud-sidebar right-sidebar hidden" id="panel-details">
     <div class="sidebar-header" style="display: flex; align-items: center; gap: 10px;">
       <button id="btn-close-details" class="close-btn" aria-label="Cerrar detalles">✕</button>
       <img id="school-logo" class="school-logo hidden" src="" alt="Logo de Escuela">
-      <h2 id="detail-title">DETALLES DE ESCUELA</h2>
+      <h2 id="detail-title">DETALLES</h2>
       <div class="corner-decor"></div>
     </div>
 
     <!-- Pestañas de Navegación -->
     <div class="details-tabs">
-      <button class="tab-btn active" data-tab="escuela">ESCUELA</button>
-      <button class="tab-btn" data-tab="heroe">HÉROE</button>
-      <button class="tab-btn" data-tab="tactica">TÁCTICA</button>
-      <button class="tab-btn" data-tab="monitor">MONITOR</button>
+      <button class="tab-btn active" data-tab="escuela" id="tab-btn-main">DETALLES</button>
+      <button class="tab-btn" data-tab="heroe" id="tab-btn-hero">HÉROE</button>
+      <button class="tab-btn" data-tab="tactica" id="tab-btn-tactics">TÁCTICA</button>
+      <button class="tab-btn" data-tab="monitor" id="tab-btn-monitor">MONITOR</button>
     </div>
 
     <div class="details-content-container">
-      <!-- PESTAÑA 1: Información de la Escuela -->
+      <!-- PESTAÑA 1: Información de la Escuela / Unidad -->
       <section id="tab-escuela" class="tab-pane active">
         <div class="sidebar-section no-pad">
           <div class="school-image-container">
             <video id="school-video" class="hidden" autoplay loop muted playsinline></video>
-            <img id="school-img" src="" alt="Imagen de Escuela">
+            <img id="school-img" src="" alt="Imagen">
             <div class="image-overlay"></div>
           </div>
         </div>
         <div class="school-motto" id="school-motto">"Siempre Alerta"</div>
+        
+        <!-- Reproductor de Audio Táctico -->
+        <div id="hud-audio-player" class="hud-audio-player">
+          <div class="player-controls">
+            <button id="player-play-btn" class="player-btn">▶ PLAY</button>
+            <div class="player-track-info">
+              <span class="track-title">AUDIO INFORMATIVO OPERACIONAL</span>
+              <span class="track-status" id="player-track-status">DETENIDO</span>
+            </div>
+          </div>
+          <div class="player-wave" id="player-wave-anim">
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+          </div>
+          <audio id="hud-audio-element" style="display:none;"></audio>
+        </div>
+
         <div class="school-data-grid">
           <div class="data-item">
-            <span class="data-label">ESPECIALIDAD:</span>
+            <span class="data-label" id="label-field-1">TIPO:</span>
             <span class="data-value" id="school-specialty">-</span>
           </div>
           <div class="data-item">
-            <span class="data-label">SECTOR:</span>
+            <span class="data-label" id="label-field-2">SECTOR / SEDE:</span>
             <span class="data-value cyan-text" id="school-dept">-</span>
           </div>
           <div class="data-item">
-            <span class="data-label">FUNDADA:</span>
+            <span class="data-label" id="label-field-3">FUNDADA / COMANDO:</span>
             <span class="data-value" id="school-founded">-</span>
           </div>
         </div>
@@ -161,9 +227,90 @@
         </div>
       </section>
     </div>
-
-    <!-- Botón de Acción Inferior removido -->
   </aside>
+
+  <!-- MÓDULO DE HISTORIA (LÍNEA DE TIEMPO INTERACTIVA) -->
+  <section id="history-module" class="hud-module hidden">
+    <div class="module-header">
+      <h2>LÍNEA DE TIEMPO HISTÓRICA: EJÉRCITO DEL PERÚ</h2>
+      <button class="close-module-btn" id="btn-close-history">✕</button>
+    </div>
+    <div class="timeline-container">
+      <div class="timeline-navigation">
+        <button id="btn-timeline-prev" class="timeline-nav-btn">◀</button>
+        <div class="timeline-wrapper">
+          <div class="timeline-line"></div>
+          <div class="timeline-events" id="timeline-events-container">
+            <!-- Eventos generados dinámicamente -->
+          </div>
+        </div>
+        <button id="btn-timeline-next" class="timeline-nav-btn">▶</button>
+      </div>
+      <div class="timeline-detail-panel" id="timeline-detail">
+        <!-- Detalle del hito seleccionado -->
+      </div>
+    </div>
+  </section>
+
+  <!-- MÓDULO DE ADMINISTRACIÓN (CMS DE CONTENIDOS) -->
+  <section id="cms-module" class="hud-module hidden">
+    <div class="module-header">
+      <h2>ADMINISTRADOR DE CONTENIDOS TÁCTICOS (CMS)</h2>
+      <button class="close-module-btn" id="btn-close-cms">✕</button>
+    </div>
+    <div class="cms-layout">
+      <!-- Selector de Unidad -->
+      <div class="cms-sidebar">
+        <h3>SELECCIONAR UNIDAD</h3>
+        <select id="cms-unit-selector" class="hud-select">
+          <!-- Opciones cargadas dinámicamente -->
+        </select>
+        <div class="cms-help">
+          <p>⚠️ Los cambios modifican el estado local (localStorage) y se reflejan en tiempo real en la escena 3D y en los paneles informativos del sistema.</p>
+        </div>
+      </div>
+      <!-- Formulario de Edición -->
+      <div class="cms-form-container">
+        <form id="cms-edit-form" class="hud-form">
+          <div class="form-group">
+            <label for="cms-name">Nombre Oficial:</label>
+            <input type="text" id="cms-name" class="hud-input" required>
+          </div>
+          <div class="form-group">
+            <label for="cms-motto">Lema / Grito de Guerra:</label>
+            <input type="text" id="cms-motto" class="hud-input">
+          </div>
+          <div class="form-group" id="cms-commander-group">
+            <label for="cms-commander">Comandante / Sede:</label>
+            <input type="text" id="cms-commander" class="hud-input">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="cms-lat">Latitud:</label>
+              <input type="number" step="0.000001" id="cms-lat" class="hud-input" required>
+            </div>
+            <div class="form-group">
+              <label for="cms-lng">Longitud:</label>
+              <input type="number" step="0.000001" id="cms-lng" class="hud-input" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="cms-description">Reseña Táctica / Histórica:</label>
+            <textarea id="cms-description" class="hud-textarea" rows="5" required></textarea>
+          </div>
+          <div class="form-group">
+            <label for="cms-audio">Ruta del Audio (.mp3):</label>
+            <input type="text" id="cms-audio" class="hud-input">
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="hud-btn glow-green">APLICAR CAMBIOS</button>
+            <button type="button" id="cms-btn-reset-db" class="hud-btn glow-cyan">RESTAURAR VALORES DE FÁBRICA</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
 
   <!-- PANEL INFERIOR REMOVIDO -->
 

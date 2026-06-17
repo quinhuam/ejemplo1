@@ -1,0 +1,73 @@
+json{
+    "ejercito_peru_jurisdicciones": {
+        "descripcion": "Mapeo de Departamentos políticos bajo el control operativo de cada División de Ejército (DE)",
+        "actualizado_al": "2026",
+        "divisiones": [
+            {
+                "id_division": "1DE",
+                "nombre": "Primera División de Ejército",
+                "cuartel_general_sede": "Piura",
+                "macroregion": "Norte",
+                "departamentos_abarcados": [
+                    "Tumbes",
+                    "Piura",
+                    "Lambayeque",
+                    "Cajamarca",
+                    "Amazonas",
+                    "La Libertad"
+                ]
+            },
+            {
+                "id_division": "2DE",
+                "nombre": "Segunda División de Ejército",
+                "cuartel_general_sede": "Rímac, Lima",
+                "macroregion": "Centro-Occidente",
+                "departamentos_abarcados": [
+                    "Lima",
+                    "Callao",
+                    "Ancash",
+                    "Ica",
+                    "Huancavelica"
+                ]
+            },
+            {
+                "id_division": "3DE",
+                "nombre": "Tercera División de Ejército",
+                "cuartel_general_sede": "Arequipa",
+                "macroregion": "Sur",
+                "departamentos_abarcados": [
+                    "Arequipa",
+                    "Tacna",
+                    "Moquegua",
+                    "Puno",
+                    "Cusco",
+                    "Apurimac",
+                    "Madre de Dios"
+                ]
+            },
+            {
+                "id_division": "4DE",
+                "nombre": "Cuarta División de Ejército",
+                "cuartel_general_sede": "Pichari (VRAEM)",
+                "macroregion": "Centro-Sur Operativo",
+                "departamentos_abarcados": [
+                    "Junin",
+                    "Pasco",
+                    "Ayacucho",
+                    "Huanuco",
+                    "San Martin"
+                ]
+            },
+            {
+                "id_division": "5DE",
+                "nombre": "Quinta División de Ejército",
+                "cuartel_general_sede": "Iquitos",
+                "macroregion": "Amazonía Oriente",
+                "departamentos_abarcados": [
+                    "Loreto",
+                    "Ucayali"
+                ]
+            }
+        ]
+    }
+}

@@ -1,0 +1,224 @@
+{
+  "divisiones": [
+    {
+      "id": "1DE",
+      "nombre": "Primera División de Ejército",
+      "cuartel_general": "Piura",
+      "macroregion": "Norte",
+      "lema": "Siempre listos para defender el Norte",
+      "coords": { "lat": -5.194, "lng": -80.632 },
+      "reseña": "Jurisdicción que cubre la frontera norte del país. Fundada con el propósito de garantizar la integridad territorial en las regiones de Tumbes, Piura, Lambayeque, Cajamarca, Amazonas y La Libertad. Posee una gran historia de valor y entrega patriótica.",
+      "audio": "assets/audio/1de_reseña.mp3",
+      "brigadas": [
+        {
+          "id": "1de_b1",
+          "nombre": "1ª Brigada de Infantería",
+          "lema": "Paso de Vencedores",
+          "comandante": "General de Brigada EP Juan Silva",
+          "reseña": "Unidad histórica de infantería con sede en Tumbes, preparada para operaciones de defensa y seguridad fronteriza.",
+          "audio": "assets/audio/1de_b1.mp3",
+          "batallones": [
+            {
+              "id": "1de_b1_bat1",
+              "nombre": "Batallón de Infantería N° 5 (BI 5)",
+              "lema": "Honor y Gloria",
+              "reseña": "Batallón táctico destacado en Zarumilla, custodio de la soberanía nacional en la línea de frontera.",
+              "audio": "assets/audio/bi5.mp3",
+              "coords": { "lat": -3.483, "lng": -80.274 },
+              "escudo": "assets/images/logos/infantery.png"
+            },
+            {
+              "id": "1de_b1_bat2",
+              "nombre": "Batallón de Infantería N° 11 (BI 11)",
+              "lema": "Vencer o Morir",
+              "reseña": "Unidad de infantería mecanizada con alto poder de fuego y movilidad táctica.",
+              "audio": "assets/audio/bi11.mp3",
+              "coords": { "lat": -3.567, "lng": -80.451 },
+              "escudo": "assets/images/logos/infantery.png"
+            }
+          ]
+        },
+        {
+          "id": "1de_b2",
+          "nombre": "1ª Brigada de Caballería",
+          "lema": "A la carga, Húsares",
+          "comandante": "General de Brigada EP Carlos Ramos",
+          "reseña": "Unidad de maniobra blindada y rápida basada en Sullana, clave para patrullajes de respuesta inmediata.",
+          "audio": "assets/audio/1de_b2.mp3",
+          "batallones": [
+            {
+              "id": "1de_b2_bat1",
+              "nombre": "Regimiento de Caballería Blindada N° 15",
+              "lema": "Velocidad y Fuerza",
+              "reseña": "Regimiento blindado dotado de tanques y vehículos de combate oruga.",
+              "audio": "assets/audio/rcb15.mp3",
+              "coords": { "lat": -4.903, "lng": -80.685 },
+              "escudo": "assets/images/logos/cavalry.png"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2DE",
+      "nombre": "Segunda División de Ejército",
+      "cuartel_general": "Rímac, Lima",
+      "macroregion": "Centro-Occidente",
+      "lema": "Fuerza y Honor en el Corazón de la Patria",
+      "coords": { "lat": -12.029, "lng": -77.028 },
+      "reseña": "Esta división custodia la capital de la República y regiones estratégicas del centro-occidente peruano. Alberga unidades de blindados, fuerzas especiales y artillería listas para el despliegue rápido.",
+      "audio": "assets/audio/2de_reseña.mp3",
+      "brigadas": [
+        {
+          "id": "2de_b1",
+          "nombre": "18ª Brigada Blindada",
+          "lema": "Poder de Fuego y Maniobra",
+          "comandante": "General de Brigada EP Alberto Torres",
+          "reseña": "Principal fuerza acorazada de la región central, con sede en el Fuerte Rímac.",
+          "audio": "assets/audio/18bb.mp3",
+          "batallones": [
+            {
+              "id": "2de_b1_bat1",
+              "nombre": "Batallón de Tanques N° 211",
+              "lema": "Acero Inquebrantable",
+              "reseña": "Unidad blindada pesada de asalto principal en el área metropolitana y costa central.",
+              "audio": "assets/audio/bt211.mp3",
+              "coords": { "lat": -12.021, "lng": -77.018 },
+              "escudo": "assets/images/logos/cavalry.png"
+            }
+          ]
+        },
+        {
+          "id": "2de_b2",
+          "nombre": "1ª Brigada de Fuerzas Especiales",
+          "lema": "Ser y no Parecer",
+          "comandante": "General de Brigada EP Manuel Vargas",
+          "reseña": "Unidad de élite paracaidista y comandos del ejército con base en Chorrillos, entrenada para misiones especiales complejas.",
+          "audio": "assets/audio/1bfe.mp3",
+          "batallones": [
+            {
+              "id": "2de_b2_bat1",
+              "nombre": "Batallón de Comandos N° 19",
+              "lema": "Hasta quemar el último cartucho",
+              "reseña": "Fuerza de asalto táctico de élite altamente especializada en incursiones y rescate de rehenes.",
+              "audio": "assets/audio/bc19.mp3",
+              "coords": { "lat": -12.164, "lng": -77.025 },
+              "escudo": "assets/images/logos/comunicaciones.png"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3DE",
+      "nombre": "Tercera División de Ejército",
+      "cuartel_general": "Arequipa",
+      "macroregion": "Sur",
+      "lema": "León del Sur, Guardián de la Frontera",
+      "coords": { "lat": -16.398, "lng": -71.536 },
+      "reseña": "Una de las divisiones con mayor tradición histórica. Con sede en Arequipa, controla las zonas andinas y costeras del sur de la república, caracterizándose por el entrenamiento en montaña y la artillería pesada.",
+      "audio": "assets/audio/3de_reseña.mp3",
+      "brigadas": [
+        {
+          "id": "3de_b1",
+          "nombre": "4ª Brigada de Montaña",
+          "lema": "El Cóndor domina las cumbres",
+          "comandante": "General de Brigada EP Ricardo Luna",
+          "reseña": "Con sede en Puno, especializada en combate y operaciones de rescate en terrenos de altitud extrema y bajas temperaturas.",
+          "audio": "assets/audio/4bm.mp3",
+          "batallones": [
+            {
+              "id": "3de_b1_bat1",
+              "nombre": "Batallón de Infantería Motorizado N° 21 (BIM 21)",
+              "lema": "Garras Andinas",
+              "reseña": "Unidad desplegada en el altiplano, preparada para el resguardo de fronteras altoandinas.",
+              "audio": "assets/audio/bim21.mp3",
+              "coords": { "lat": -15.842, "lng": -70.021 },
+              "escudo": "assets/images/logos/infantery.png"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "4DE",
+      "nombre": "Cuarta División de Ejército",
+      "cuartel_general": "Pichari (VRAEM)",
+      "macroregion": "Centro-Sur Operativo",
+      "lema": "Paz y Desarrollo en el VRAEM",
+      "coords": { "lat": -12.518, "lng": -73.832 },
+      "reseña": "División eminentemente operativa establecida en la región del VRAEM. Ejecuta operaciones contra-terroristas y de apoyo social, trabajando en estrecha colaboración con la población para pacificar e integrar el centro-sur del país.",
+      "audio": "assets/audio/4de_reseña.mp3",
+      "brigadas": [
+        {
+          "id": "4de_b1",
+          "nombre": "31ª Brigada de Infantería",
+          "lema": "Centinelas del Mantaro",
+          "comandante": "General de Brigada EP David Gómez",
+          "reseña": "Ubicada en Huancayo, Junín. Clave para la seguridad interna y pacificación del centro de la cordillera.",
+          "audio": "assets/audio/31bi.mp3",
+          "batallones": [
+            {
+              "id": "4de_b1_bat1",
+              "nombre": "Batallón de Infantería Motorizado N° 311",
+              "lema": "Los Valientes de Junín",
+              "reseña": "Unidad histórica de infantería destacada en operaciones de pacificación y patrullaje de alta montaña.",
+              "audio": "assets/audio/bim311.mp3",
+              "coords": { "lat": -12.068, "lng": -75.210 },
+              "escudo": "assets/images/logos/infantery.png"
+            },
+            {
+              "id": "4de_b1_bat2",
+              "nombre": "Batallón de Infantería Motorizado N° 324",
+              "lema": "Lealtad y Sacrificio",
+              "reseña": "Unidad de apoyo táctico y de combate con base en Jauja.",
+              "audio": "assets/audio/bim324.mp3",
+              "coords": { "lat": -11.777, "lng": -75.500 },
+              "escudo": "assets/images/logos/infantery.png"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "5DE",
+      "nombre": "Quinta División de Ejército",
+      "cuartel_general": "Iquitos",
+      "macroregion": "Amazonía Oriente",
+      "lema": "El Río es nuestro camino, la Selva nuestra patria",
+      "coords": { "lat": -3.749, "lng": -73.251 },
+      "reseña": "La división más extensa territorialmente, encargada del resguardo de la Amazonía peruana. Especialistas en combate fluvial y supervivencia en selva, salvaguardando las fronteras amazónicas orientales.",
+      "audio": "assets/audio/5de_reseña.mp3",
+      "brigadas": [
+        {
+          "id": "5de_b1",
+          "nombre": "5ª Brigada de Selva",
+          "lema": "Centinelas del Amazonas",
+          "comandante": "General de Brigada EP Felipe Mendoza",
+          "reseña": "Brigada altamente entrenada en operaciones en selva tropical densa e inundable, patrullajes fluviales e infiltraciones silenciosas.",
+          "audio": "assets/audio/5bs.mp3",
+          "batallones": [
+            {
+              "id": "5de_b1_bat1",
+              "nombre": "Batallón de Infantería de Selva N° 3 (BIS 3)",
+              "lema": "Garra de Jaguar",
+              "reseña": "Ubicado en Caballococha, en la triple frontera amazónica. Resguarda la soberanía frente a amenazas transnacionales.",
+              "audio": "assets/audio/bis3.mp3",
+              "coords": { "lat": -3.908, "lng": -70.512 },
+              "escudo": "assets/images/logos/infantery.png"
+            },
+            {
+              "id": "5de_b1_bat2",
+              "nombre": "Batallón de Infantería de Selva N° 33 (BIS 33)",
+              "lema": "Espíritu del Bosque",
+              "reseña": "Unidad de operaciones fluviales y terrestres profundas con base en Iquitos.",
+              "audio": "assets/audio/bis33.mp3",
+              "coords": { "lat": -3.738, "lng": -73.230 },
+              "escudo": "assets/images/logos/infantery.png"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

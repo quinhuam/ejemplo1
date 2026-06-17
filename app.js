@@ -14,7 +14,6 @@ function project(lng, lat) {
   };
 }
 
-// Helper para normalizar textos en español (quitar acentos/diacríticos y pasar a mayúsculas)
 function normalizeString(str) {
   if (!str) return "";
   return str
@@ -32,6 +31,7 @@ class SoundGenerator {
     this.mainGain = null;
     this.ambientOsc = null;
     this.enabled = true;
+    this.synthInterval = null;
   }
 
   init() {
@@ -39,7 +39,7 @@ class SoundGenerator {
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       this.mainGain = this.ctx.createGain();
-      this.mainGain.gain.value = 0.2; // Volumen general bajo por defecto
+      this.mainGain.gain.value = 0.2;
       this.mainGain.connect(this.ctx.destination);
       this.startAmbientHum();
     } catch (e) {
@@ -58,18 +58,17 @@ class SoundGenerator {
   startAmbientHum() {
     if (!this.ctx || !this.enabled) return;
     
-    // Zumbido de fondo (Tactical Hum)
     this.ambientOsc = this.ctx.createOscillator();
     const filter = this.ctx.createBiquadFilter();
     const ambientGain = this.ctx.createGain();
 
     this.ambientOsc.type = 'triangle';
-    this.ambientOsc.frequency.setValueAtTime(55, this.ctx.currentTime); // Nota La (A1) muy grave
+    this.ambientOsc.frequency.setValueAtTime(55, this.ctx.currentTime); // La1 grave
 
     filter.type = 'lowpass';
     filter.frequency.setValueAtTime(100, this.ctx.currentTime);
 
-    ambientGain.gain.setValueAtTime(0.04, this.ctx.currentTime); // Muy sutil
+    ambientGain.gain.setValueAtTime(0.04, this.ctx.currentTime);
 
     this.ambientOsc.connect(filter);
     filter.connect(ambientGain);
@@ -86,7 +85,6 @@ class SoundGenerator {
     const gainNode = this.ctx.createGain();
 
     osc.type = 'sine';
-    // Clic digital agudo
     osc.frequency.setValueAtTime(900, this.ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.1);
 
@@ -146,17 +144,61 @@ class SoundGenerator {
     osc.start();
     osc.stop(this.ctx.currentTime + 0.5);
   }
+
+  // Genera un pitido morse/sintetizado militar de fondo si no hay audio mp3
+  startSynthVoice() {
+    this.stopSynthVoice();
+    if (!this.ctx || !this.enabled) return;
+    
+    this.synthInterval = setInterval(() => {
+      if (Math.random() > 0.4) {
+        const osc = this.ctx.createOscillator();
+        const filter = this.ctx.createBiquadFilter();
+        const gainNode = this.ctx.createGain();
+        
+        osc.type = 'sawtooth';
+        // Frecuencia robótica modulada
+        const freq = 120 + Math.random() * 80;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(350, this.ctx.currentTime);
+        filter.Q.setValueAtTime(3, this.ctx.currentTime);
+
+        gainNode.gain.setValueAtTime(0.08, this.ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+
+        osc.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.mainGain);
+
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.16);
+      }
+    }, 180);
+  }
+
+  stopSynthVoice() {
+    if (this.synthInterval) {
+      clearInterval(this.synthInterval);
+      this.synthInterval = null;
+    }
+  }
 }
 
 const sounds = new SoundGenerator();
 
 // --- VARIABLES PRINCIPALES ---
 let scene, camera, renderer, controls;
-let mapGroup, pinsGroup;
+let mapGroup, pinsGroup, orgPinsGroup;
 let departmentsData = {};
 let schoolsData = [];
+let orgData = null;
+let jurisdiccionData = null;
+let currentMode = 'org'; // 'org', 'schools', 'history', 'cms'
 let hoveredDepartment = null;
 let selectedSchool = null;
+let selectedOrgUnit = null; // { type: 'division'|'brigade'|'battalion', id: string, data: object }
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
@@ -180,6 +222,85 @@ const consoleLogs = document.getElementById('console-logs');
 const mouseCoordsEl = document.getElementById('console-mouse-coords');
 const clockDisplay = document.getElementById('hud-clock');
 
+// AUDIO PLAYER DOM
+const hudAudioPlayer = document.getElementById('hud-audio-player');
+const playerPlayBtn = document.getElementById('player-play-btn');
+const playerTrackStatus = document.getElementById('player-track-status');
+const playerWaveAnim = document.getElementById('player-wave-anim');
+const hudAudioElement = document.getElementById('hud-audio-element');
+
+// --- EVENTOS DE INTERFAZ DE MODOS ---
+const navOrg = document.getElementById('nav-org');
+const navSchools = document.getElementById('nav-schools');
+const navHistory = document.getElementById('nav-history');
+const navCms = document.getElementById('nav-cms');
+
+const panelLeft = document.getElementById('panel-left');
+const schoolsControls = document.getElementById('schools-controls');
+const orgControls = document.getElementById('org-controls');
+const historyModule = document.getElementById('history-module');
+const cmsModule = document.getElementById('cms-module');
+
+// LÍNEA DE TIEMPO HISTÓRICA
+const historyEvents = [
+  {
+    year: "1200",
+    title: "Época Incaica",
+    subtitle: "El Ejército del Inca",
+    desc: "El Tawantinsuyu estructuró un poderoso ejército basado en la disciplina militar, entrenamiento constante y una infraestructura de tambos y caminos (Qhapaq Ñan) que garantizaba la logística. Sus tácticas de cerco consolidaron el mayor imperio de América del Sur.",
+    image: "assets/images/special_ops.jpg"
+  },
+  {
+    year: "1821",
+    title: "Independencia",
+    subtitle: "Nacimiento de la Legión Peruana",
+    desc: "Tras la proclamación de la independencia nacional por el general Don José de San Martín, se expide el decreto de creación del primer Ejército del Perú y de la Guardia Cívica, forjando el brazo militar de la nueva República.",
+    image: "assets/images/infantry.jpg"
+  },
+  {
+    year: "1824",
+    title: "Consolidación",
+    subtitle: "Batallas de Junín y Ayacucho",
+    desc: "El contingente patriota peruano y aliado, al mando del Mariscal Antonio José de Sucre, derrota de forma inapelable al virreinato realista. Se sella definitivamente la independencia del Perú y del continente sudamericano.",
+    image: "assets/images/cavalry.jpg"
+  },
+  {
+    year: "1879",
+    title: "Guerra del Pacífico",
+    subtitle: "Resistencia e Inmolación",
+    desc: "El Ejército combate con heroísmo. Francisco Bolognesi inmola su vida en Arica defendiendo el honor nacional hasta quemar el último cartucho, y Andrés Avelino Cáceres 'El Brujo de los Andes' organiza la legendaria resistencia en la Campaña de la Breña.",
+    image: "assets/images/mountain.jpg"
+  },
+  {
+    year: "1941",
+    title: "Campaña del Norte",
+    subtitle: "Despliegue y Primer Salto de Combate",
+    desc: "Conflicto armado que demostró la excelente preparación y modernización táctica del Ejército del Perú. Se realizó con éxito la primera operación aérea de asalto paracaidista militar en América del Sur en Puerto Bolívar.",
+    image: "assets/images/artillery.jpg"
+  },
+  {
+    year: "1995",
+    title: "Conflicto del Cenepa",
+    subtitle: "Defensa e Infiltración de Selva",
+    desc: "Operaciones de combate en la cordillera del Cóndor. Tropas peruanas detienen y rechazan las incursiones en selva densa, valiéndose de lealtad, conocimiento del terreno y patrullaje de comandos. Sienta las bases para el tratado definitivo de paz.",
+    image: "assets/images/jungle.jpg"
+  },
+  {
+    year: "1997",
+    title: "Chavín de Huántar",
+    subtitle: "Rescate de Rehenes de la Residencia de Japón",
+    desc: "Considerada una de las misiones de rescate militar más exitosas a nivel global. Comandos construyen túneles subterráneos y penetran por asalto coordinado, neutralizando a terroristas del MRTA y rescatando a 72 rehenes a salvo.",
+    image: "assets/images/special_ops.jpg"
+  },
+  {
+    year: "2026",
+    title: "Pacificación y Desarrollo",
+    subtitle: "Garante Operativo en el VRAEM y Apoyo Civil",
+    desc: "En la actualidad, las fuerzas militares del Ejército combaten las amenazas en el VRAEM, resguardan las fronteras soberanas, y despliegan Batallones de Ingeniería y Apoyo para auxiliar a la ciudadanía ante emergencias climatológicas y desastres naturales.",
+    image: "assets/images/engineering.jpg"
+  }
+];
+
 // --- ETIQUETAS HTML PROYECTADAS ---
 let labelsContainer = null;
 
@@ -190,33 +311,60 @@ async function init() {
   setupEventListeners();
   startHUDClock();
   
-  // Agregar logs iniciales
   addConsoleLog("ESTABLECIENDO ENLACE CON REPOSITORIOS GEOGRÁFICOS...", "cyan");
   
   try {
-    // Carga de GeoJSON y JSON de escuelas en paralelo
-    const [geoRes, schoolsRes] = await Promise.all([
+    // Carga de GeoJSON, Escuelas, Jurisdicciones y Estructura en paralelo
+    const [geoRes, schoolsRes, jurisRes, orgRes] = await Promise.all([
       fetch('data/peru_departamentos.geojson'),
-      fetch('data/schools.json')
+      fetch('data/schools.json'),
+      fetch('jurisdiccion.json'),
+      fetch('data/estructura_organica.json')
     ]);
     
     const geoData = await geoRes.json();
-    schoolsData = await schoolsRes.json();
     
-    addConsoleLog("CONEXIÓN DE DATOS ESTABLECIDA EXPENDIENDO 8 ACADEMIAS MILITARES.", "green");
+    // Cargar desde localStorage si ya fue editado por el CMS, si no, del archivo
+    const savedSchools = localStorage.getItem('ejercito_mvp_schools_data');
+    if (savedSchools) {
+      schoolsData = JSON.parse(savedSchools);
+      addConsoleLog("CARGADOS DATOS DE ESCUELAS DESDE LOCALSTORAGE.", "cyan");
+    } else {
+      schoolsData = await schoolsRes.json();
+      localStorage.setItem('ejercito_mvp_schools_data', JSON.stringify(schoolsData));
+    }
+
+    const savedOrg = localStorage.getItem('ejercito_mvp_org_data');
+    if (savedOrg) {
+      orgData = JSON.parse(savedOrg);
+      addConsoleLog("CARGADOS DATOS DE ESTRUCTURA ORGÁNICA DESDE LOCALSTORAGE.", "cyan");
+    } else {
+      orgData = await orgRes.json();
+      localStorage.setItem('ejercito_mvp_org_data', JSON.stringify(orgData));
+    }
+    
+    jurisdiccionData = await jurisRes.json();
+    
+    addConsoleLog("CONEXIÓN DE DATOS ESTABLECIDA Y BASE DE DATOS LOCAL SINCRONIZADA.", "green");
     
     renderPeruMap(geoData);
     createSchoolPins();
-    if (departmentList) populateDepartmentSidebar();
+    createOrganicPins();
     
-    // Animación de entrada de cámara
-    addConsoleLog("NÚCLEO 3D EN LÍNEA: ESCANEO CARTOGRÁFICO LISTO.", "green");
+    if (departmentList) populateDepartmentSidebar();
+    populateOrganicTree();
+    populateCmsUnitSelector();
+    
+    // Modo inicial
+    switchMode('org');
+    
+    addConsoleLog("NÚCLEO 3D EN LÍNEA: SISTEMA INTERACTIVO LISTO.", "green");
   } catch (error) {
     console.error("Error cargando archivos de datos", error);
     addConsoleLog("ERROR CRÍTICO: FALLÓ LA CARGA DE BASE DE DATOS LOCAL.", "red");
   }
   
-  resetInactivityTimer(); // Kiosk Mode: Iniciar temporizador
+  resetInactivityTimer();
   animate();
 }
 
@@ -241,26 +389,29 @@ function setupThreeJS() {
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
-  controls.maxPolarAngle = Math.PI / 2 - 0.05; // No ver por debajo del mapa
+  controls.maxPolarAngle = Math.PI / 2 - 0.05;
   controls.minDistance = 3;
   controls.maxDistance = 35;
   controls.target.copy(currentCameraLookAt);
   
   // Grupos
   mapGroup = new THREE.Group();
-  pinsGroup = new THREE.Group();
+  pinsGroup = new THREE.Group();     // Pines Escuelas
+  orgPinsGroup = new THREE.Group();  // Pines Orgánicos (Batallones y Divisiones)
+  
   scene.add(mapGroup);
   scene.add(pinsGroup);
+  scene.add(orgPinsGroup);
   
   // Iluminación Táctica
   const ambientLight = new THREE.AmbientLight(0x0c1e36, 1.2);
   scene.add(ambientLight);
   
-  const dirLight = new THREE.DirectionalLight(0x10b981, 1.0); // Luz de acento verde
+  const dirLight = new THREE.DirectionalLight(0x10b981, 1.0);
   dirLight.position.set(10, 20, 10);
   scene.add(dirLight);
   
-  const pointLight1 = new THREE.PointLight(0x06b6d4, 1.5, 30); // Luz azul de acento
+  const pointLight1 = new THREE.PointLight(0x06b6d4, 1.5, 30);
   pointLight1.position.set(-10, 5, -5);
   scene.add(pointLight1);
   
@@ -289,7 +440,6 @@ function createLabelsContainer() {
 
 // --- DIBUJADO DEL MAPA ---
 function renderPeruMap(geoJson) {
-  // Colores alternados para dar textura y volumen de sectores
   const colors = [
     0x0a1424, 0x0b1a2e, 0x0d1f38, 0x102542,
     0x08152b, 0x0a1d37, 0x092240, 0x071b32
@@ -299,7 +449,6 @@ function renderPeruMap(geoJson) {
     const deptName = feature.properties.NOMBDEP || feature.properties.name || "DEPARTAMENTO";
     const deptColor = colors[index % colors.length];
     
-    // Contar cuántas escuelas hay en este departamento
     const normalizedName = normalizeString(deptName);
     const count = schoolsData.filter(s => normalizeString(s.department) === normalizedName).length;
     departmentsData[normalizedName] = { count, meshes: [] };
@@ -316,9 +465,9 @@ function renderPeruMap(geoJson) {
     });
   });
   
-  // Rotar el mapa completo para colocarlo horizontalmente en el plano XZ
   mapGroup.rotation.x = -Math.PI / 2;
   pinsGroup.rotation.x = -Math.PI / 2;
+  orgPinsGroup.rotation.x = -Math.PI / 2;
 }
 
 function createDepartment3D(feature, color) {
@@ -340,7 +489,6 @@ function createDepartment3D(feature, color) {
   if (type === "Polygon") {
     const shape = new THREE.Shape();
     drawPoly(coordinates[0], shape);
-    // Agujeros
     for (let i = 1; i < coordinates.length; i++) {
       const hole = new THREE.Path();
       drawPoly(coordinates[i], hole);
@@ -384,7 +532,6 @@ function createDepartment3D(feature, color) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     
-    // Bordes vectoriales brillantes (estilo HUD wireframe)
     const edgesGeom = new THREE.EdgesGeometry(geom);
     const edgesLine = new THREE.LineSegments(
       edgesGeom,
@@ -411,19 +558,16 @@ function createSchoolPins() {
     const pinGroup = new THREE.Group();
     pinGroup.position.set(pinProj.x, pinProj.y, extrudeDepth + 0.01);
     
-    // 1. Asta vertical fina del pin
     const poleGeom = new THREE.CylinderGeometry(0.03, 0.03, 0.7, 8);
-    // Desplazar el pivote para que comience en la base
     poleGeom.translate(0, 0.35, 0);
-    poleGeom.rotateX(Math.PI / 2); // alinear con el eje Z local (que apunta hacia arriba antes de rotar el grupo)
+    poleGeom.rotateX(Math.PI / 2);
     const poleMat = new THREE.MeshBasicMaterial({ color: 0x64748b });
     const pole = new THREE.Mesh(poleGeom, poleMat);
     pinGroup.add(pole);
     
-    // 2. Cabezal flotante del pin (Antena / Holograma)
     const headGeom = new THREE.ConeGeometry(0.12, 0.35, 4);
     headGeom.translate(0, 0.7, 0);
-    headGeom.rotateX(Math.PI / 2); // alinear con eje Z
+    headGeom.rotateX(Math.PI / 2);
     const headMat = new THREE.MeshPhongMaterial({
       color: school.color,
       emissive: school.color,
@@ -434,18 +578,14 @@ function createSchoolPins() {
     const head = new THREE.Mesh(headGeom, headMat);
     pinGroup.add(head);
 
-    // 3. Sensor de interacción invisible (para facilitar el Raycasting)
     const sensorGeom = new THREE.BoxGeometry(0.5, 0.5, 1.2);
     sensorGeom.translate(0, 0, 0.5);
-    const sensorMat = new THREE.MeshBasicMaterial({
-      visible: false // invisible
-    });
+    const sensorMat = new THREE.MeshBasicMaterial({ visible: false });
     const sensorMesh = new THREE.Mesh(sensorGeom, sensorMat);
-    sensorMesh.userData = { isPin: true, schoolId: school.id, parentGroup: pinGroup };
+    sensorMesh.userData = { isPin: true, isSchool: true, schoolId: school.id, parentGroup: pinGroup };
     pinGroup.add(sensorMesh);
     pinInteractionMeshes.push(sensorMesh);
 
-    // 4. Anillo de pulso (Beacon effect) en la base del pin
     const pulseRingGeom = new THREE.RingGeometry(0.05, 0.28, 16);
     const pulseRingMat = new THREE.MeshBasicMaterial({
       color: school.color,
@@ -456,7 +596,6 @@ function createSchoolPins() {
     const pulseRing = new THREE.Mesh(pulseRingGeom, pulseRingMat);
     pinGroup.add(pulseRing);
     
-    // Guardar referencia en el grupo
     pinGroup.userData = { 
       schoolId: school.id, 
       school, 
@@ -465,21 +604,162 @@ function createSchoolPins() {
     };
     
     pinsGroup.add(pinGroup);
-
-    // Crear etiqueta HTML flotante
-    createFloatingLabel(school, pinProj);
+    createFloatingLabel(school.id, school.specialty, school.color, pinProj, pinsGroup);
   });
 }
 
-// Crear la etiqueta flotante HTML en 2D vinculada a un pin
-function createFloatingLabel(school, pinProj) {
+// --- CREACIÓN DE PINES ORGÁNICOS (DIVISIONES Y BATALLONES) ---
+function createOrganicPins() {
+  if (!orgData) return;
+  
+  // Limpiar pins orgánicos anteriores si existen en la escena
+  while (orgPinsGroup.children.length > 0) {
+    const child = orgPinsGroup.children[0];
+    orgPinsGroup.remove(child);
+  }
+
+  orgData.divisiones.forEach(div => {
+    // 1. Pin para el Cuartel General de la División (Cian)
+    const divProj = project(div.coords.lng, div.coords.lat);
+    const divColor = "#06b6d4"; // Cian
+    
+    const divPinGroup = new THREE.Group();
+    divPinGroup.position.set(divProj.x, divProj.y, extrudeDepth + 0.01);
+    
+    const poleGeom = new THREE.CylinderGeometry(0.04, 0.04, 0.9, 8);
+    poleGeom.translate(0, 0.45, 0);
+    poleGeom.rotateX(Math.PI / 2);
+    const poleMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8 });
+    const pole = new THREE.Mesh(poleGeom, poleMat);
+    divPinGroup.add(pole);
+    
+    // Cabeza de pirámide doble más grande
+    const headGeom = new THREE.OctahedronGeometry(0.2);
+    headGeom.translate(0, 0.9, 0);
+    headGeom.rotateX(Math.PI / 4);
+    const headMat = new THREE.MeshPhongMaterial({
+      color: divColor,
+      emissive: divColor,
+      emissiveIntensity: 1.8,
+      transparent: true,
+      opacity: 0.95
+    });
+    const head = new THREE.Mesh(headGeom, headMat);
+    divPinGroup.add(head);
+
+    const sensorGeom = new THREE.BoxGeometry(0.7, 0.7, 1.4);
+    sensorGeom.translate(0, 0, 0.6);
+    const sensorMat = new THREE.MeshBasicMaterial({ visible: false });
+    const sensorMesh = new THREE.Mesh(sensorGeom, sensorMat);
+    sensorMesh.userData = { 
+      isPin: true, 
+      isOrg: true, 
+      orgType: 'division', 
+      unitId: div.id, 
+      parentGroup: divPinGroup 
+    };
+    divPinGroup.add(sensorMesh);
+    pinInteractionMeshes.push(sensorMesh);
+
+    const pulseRingGeom = new THREE.RingGeometry(0.08, 0.4, 16);
+    const pulseRingMat = new THREE.MeshBasicMaterial({
+      color: divColor,
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide
+    });
+    const pulseRing = new THREE.Mesh(pulseRingGeom, pulseRingMat);
+    divPinGroup.add(pulseRing);
+    
+    divPinGroup.userData = { 
+      unitId: div.id, 
+      unitType: 'division',
+      unitData: div,
+      pulseRing,
+      head
+    };
+    
+    orgPinsGroup.add(divPinGroup);
+    createFloatingLabel(div.id, div.nombre, divColor, divProj, orgPinsGroup);
+
+    // 2. Pines para los Batallones de cada Brigada (Rojo)
+    div.brigadas.forEach(brig => {
+      brig.batallones.forEach(bat => {
+        const batProj = project(bat.coords.lng, bat.coords.lat);
+        const batColor = "#ef4444"; // Rojo
+
+        const batPinGroup = new THREE.Group();
+        batPinGroup.position.set(batProj.x, batProj.y, extrudeDepth + 0.01);
+        
+        const bPoleGeom = new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8);
+        bPoleGeom.translate(0, 0.3, 0);
+        bPoleGeom.rotateX(Math.PI / 2);
+        const bPole = new THREE.Mesh(bPoleGeom, poleMat);
+        batPinGroup.add(bPole);
+        
+        const bHeadGeom = new THREE.ConeGeometry(0.09, 0.28, 4);
+        bHeadGeom.translate(0, 0.6, 0);
+        bHeadGeom.rotateX(Math.PI / 2);
+        const bHeadMat = new THREE.MeshPhongMaterial({
+          color: batColor,
+          emissive: batColor,
+          emissiveIntensity: 1.2,
+          transparent: true,
+          opacity: 0.85
+        });
+        const bHead = new THREE.Mesh(bHeadGeom, bHeadMat);
+        batPinGroup.add(bHead);
+
+        const bSensorGeom = new THREE.BoxGeometry(0.4, 0.4, 1.0);
+        bSensorGeom.translate(0, 0, 0.4);
+        const bSensorMesh = new THREE.Mesh(bSensorGeom, sensorMat);
+        bSensorMesh.userData = { 
+          isPin: true, 
+          isOrg: true, 
+          orgType: 'battalion', 
+          unitId: bat.id,
+          parentGroup: batPinGroup 
+        };
+        batPinGroup.add(bSensorMesh);
+        pinInteractionMeshes.push(bSensorMesh);
+
+        const bPulseRingGeom = new THREE.RingGeometry(0.04, 0.22, 16);
+        const bPulseRingMat = new THREE.MeshBasicMaterial({
+          color: batColor,
+          transparent: true,
+          opacity: 0.8,
+          side: THREE.DoubleSide
+        });
+        const bPulseRing = new THREE.Mesh(bPulseRingGeom, bPulseRingMat);
+        batPinGroup.add(bPulseRing);
+        
+        batPinGroup.userData = { 
+          unitId: bat.id, 
+          unitType: 'battalion',
+          unitData: bat,
+          parentBrigade: brig,
+          parentDivision: div,
+          pulseRing: bPulseRing,
+          head: bHead
+        };
+        
+        orgPinsGroup.add(batPinGroup);
+        // Mostrar siglas cortas
+        const sigla = bat.nombre.split("(")[1] ? bat.nombre.split("(")[1].replace(")", "") : bat.nombre;
+        createFloatingLabel(bat.id, sigla, batColor, batProj, orgPinsGroup);
+      });
+    });
+  });
+}
+
+function createFloatingLabel(id, text, color, pinProj, group) {
   const labelDiv = document.createElement('div');
   labelDiv.className = 'tactical-label';
-  labelDiv.id = `label-${school.id}`;
+  labelDiv.id = `label-${id}`;
   labelDiv.style.position = 'absolute';
   labelDiv.style.padding = '3px 6px';
-  labelDiv.style.border = `1px solid ${school.color}`;
-  labelDiv.style.borderLeft = `3px solid ${school.color}`;
+  labelDiv.style.border = `1px solid ${color}`;
+  labelDiv.style.borderLeft = `3px solid ${color}`;
   labelDiv.style.background = 'rgba(4, 8, 16, 0.88)';
   labelDiv.style.fontSize = '9px';
   labelDiv.style.color = '#fff';
@@ -487,12 +767,11 @@ function createFloatingLabel(school, pinProj) {
   labelDiv.style.whiteSpace = 'nowrap';
   labelDiv.style.pointerEvents = 'none';
   labelDiv.style.transform = 'translate(-50%, -100%)';
-  labelDiv.innerHTML = `<span class="blink" style="color:${school.color}">•</span> ${school.specialty.toUpperCase()}`;
+  labelDiv.innerHTML = `<span class="blink" style="color:${color}">•</span> ${text.toUpperCase()}`;
   
   labelsContainer.appendChild(labelDiv);
   
-  // Guardar en la estructura del pin
-  const pin = pinsGroup.children.find(p => p.userData.schoolId === school.id);
+  const pin = group.children.find(p => p.userData.unitId === id || p.userData.schoolId === id);
   if (pin) {
     pin.userData.labelDiv = labelDiv;
   }
@@ -501,22 +780,26 @@ function createFloatingLabel(school, pinProj) {
 // --- ACTUALIZAR ETIQUETAS Y ANIMAR BEACONS ---
 const labelTempV = new THREE.Vector3();
 function updateLabels() {
-  pinsGroup.children.forEach(pin => {
+  const currentGroup = (currentMode === 'schools') ? pinsGroup : orgPinsGroup;
+  
+  // Ocultar etiquetas del grupo inactivo
+  const inactiveGroup = (currentMode === 'schools') ? orgPinsGroup : pinsGroup;
+  inactiveGroup.children.forEach(pin => {
+    if (pin.userData.labelDiv) {
+      pin.userData.labelDiv.style.display = 'none';
+    }
+  });
+
+  currentGroup.children.forEach(pin => {
     const labelDiv = pin.userData.labelDiv;
     if (!labelDiv) return;
     
-    // Calcular posición de pantalla 2D
-    // El pin está en pinsGroup que tiene rotación en X (-PI/2)
-    // Así que su posición 3D real en la escena es (x, -z, y) en relación a los valores globales
     labelTempV.copy(pin.position);
-    // Aplicar la rotación del grupo de pines
-    labelTempV.applyEuler(pinsGroup.rotation);
-    labelTempV.y += 0.8; // desplazar hacia arriba
+    labelTempV.applyEuler(currentGroup.rotation);
+    labelTempV.y += 0.8;
     
-    // Proyectar
     labelTempV.project(camera);
     
-    // Determinar si está detrás de la cámara
     const dir = new THREE.Vector3();
     camera.getWorldDirection(dir);
     
@@ -540,8 +823,8 @@ function updateLabels() {
 }
 
 function animatePins(delta) {
-  pinsGroup.children.forEach(pin => {
-    // 1. Pulso del anillo
+  const activeGroup = (currentMode === 'schools') ? pinsGroup : orgPinsGroup;
+  activeGroup.children.forEach(pin => {
     const ring = pin.userData.pulseRing;
     if (ring) {
       ring.scale.addScalar(0.015);
@@ -552,7 +835,6 @@ function animatePins(delta) {
       }
     }
     
-    // 2. Rotación del cabezal piramidal
     const head = pin.userData.head;
     if (head) {
       head.rotation.y += 0.02;
@@ -560,12 +842,102 @@ function animatePins(delta) {
   });
 }
 
-// --- POPULAR SIDEBAR IZQUIERDO ---
+// --- POPULAR ACORDEÓN DE ESTRUCTURA ORGÁNICA (MENÚ IZQUIERDO) ---
+function populateOrganicTree() {
+  const treeContainer = document.getElementById('org-tree');
+  if (!treeContainer || !orgData) return;
+  treeContainer.innerHTML = "";
+  
+  orgData.divisiones.forEach(div => {
+    // Nodo División
+    const divNode = document.createElement('div');
+    divNode.className = 'tree-node';
+    divNode.dataset.type = 'division';
+    divNode.dataset.id = div.id;
+    
+    const divTitle = document.createElement('div');
+    divTitle.className = 'tree-node-title';
+    divTitle.innerHTML = `
+      <span>🛡️ ${div.nombre}</span>
+      <span class="node-toggle-icon">▶</span>
+    `;
+    
+    const divChildren = document.createElement('ul');
+    divChildren.className = 'tree-children';
+    
+    // Añadir Brigadas
+    div.brigadas.forEach(brig => {
+      const brigNode = document.createElement('li');
+      brigNode.className = 'tree-node';
+      brigNode.dataset.type = 'brigade';
+      brigNode.dataset.id = brig.id;
+      
+      const brigTitle = document.createElement('div');
+      brigTitle.className = 'tree-node-title';
+      brigTitle.innerHTML = `
+        <span>📂 ${brig.nombre}</span>
+        <span class="node-toggle-icon">▶</span>
+      `;
+      
+      const brigChildren = document.createElement('ul');
+      brigChildren.className = 'tree-children';
+      
+      // Añadir Batallones
+      brig.batallones.forEach(bat => {
+        const batNode = document.createElement('li');
+        batNode.className = 'tree-subnode';
+        batNode.dataset.id = bat.id;
+        batNode.textContent = `• ${bat.nombre}`;
+        
+        batNode.addEventListener('click', (e) => {
+          e.stopPropagation();
+          sounds.playClick();
+          
+          // Desmarcar otros subnodos
+          treeContainer.querySelectorAll('.tree-subnode.active').forEach(n => n.classList.remove('active'));
+          batNode.classList.add('active');
+          
+          selectOrganicUnit('battalion', bat.id);
+        });
+        
+        brigChildren.appendChild(batNode);
+      });
+      
+      brigTitle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sounds.playClick();
+        
+        const expanded = brigNode.classList.toggle('expanded');
+        selectOrganicUnit('brigade', brig.id);
+      });
+      
+      brigNode.appendChild(brigTitle);
+      brigNode.appendChild(brigChildren);
+      divChildren.appendChild(brigNode);
+    });
+    
+    divTitle.addEventListener('click', () => {
+      sounds.playClick();
+      const expanded = divNode.classList.toggle('expanded');
+      
+      // Resaltar en árbol
+      treeContainer.querySelectorAll('.tree-node.active').forEach(n => n.classList.remove('active'));
+      divNode.classList.add('active');
+      
+      selectOrganicUnit('division', div.id);
+    });
+    
+    divNode.appendChild(divTitle);
+    divNode.appendChild(divChildren);
+    treeContainer.appendChild(divNode);
+  });
+}
+
+// --- POPULAR SIDEBAR IZQUIERDO DE ESCUELAS ---
 function populateDepartmentSidebar() {
   if (!departmentList) return;
   departmentList.innerHTML = "";
   
-  // Obtener lista ordenada de departamentos
   const sortedDepts = Object.keys(departmentsData).sort();
   
   sortedDepts.forEach(dept => {
@@ -586,27 +958,269 @@ function populateDepartmentSidebar() {
   });
 }
 
-// --- GESTIÓN DE SELECCIONES ---
+// --- GESTIÓN DE SELECCIÓN DE UNIDADES DE LA ESTRUCTURA ORGÁNICA ---
+function selectOrganicUnit(type, id) {
+  let unit = null;
+  let parentDivision = null;
+  let parentBrigade = null;
 
-// Seleccionar un Departamento
+  if (type === 'division') {
+    unit = orgData.divisiones.find(d => d.id === id);
+    parentDivision = unit;
+  } else if (type === 'brigade') {
+    orgData.divisiones.forEach(d => {
+      const b = d.brigadas.find(br => br.id === id);
+      if (b) {
+        unit = b;
+        parentDivision = d;
+      }
+    });
+  } else if (type === 'battalion') {
+    orgData.divisiones.forEach(d => {
+      d.brigadas.forEach(br => {
+        const bat = br.batallones.find(bt => bt.id === id);
+        if (bat) {
+          unit = bat;
+          parentDivision = d;
+          parentBrigade = br;
+        }
+      });
+    });
+  }
+
+  if (!unit) return;
+
+  selectedOrgUnit = { type, id, data: unit, parentDivision, parentBrigade };
+  addConsoleLog(`[ACCESO] SOLICITANDO DATOS ORGANIZACIONALES: ${unit.nombre.toUpperCase()}`, "cyan");
+
+  // Ajustar cámara e iluminación en base a la división
+  if (parentDivision) {
+    // 1. Iluminar jurisdicción completa de la división
+    highlightDivisionJurisdiction(parentDivision.id);
+    
+    // 2. Enfocar cámara
+    if (type === 'battalion') {
+      const proj = project(unit.coords.lng, unit.coords.lat);
+      const pinPos = new THREE.Vector3(proj.x, 0.8, -proj.y);
+      targetCameraLookAt.copy(pinPos);
+      targetCameraPos.set(pinPos.x, pinPos.y + 4.0, pinPos.z + 5.0);
+    } else {
+      // Enfocar en Cuartel General de División
+      const proj = project(parentDivision.coords.lng, parentDivision.coords.lat);
+      const divPos = new THREE.Vector3(proj.x, 1.2, -proj.y);
+      targetCameraLookAt.copy(divPos);
+      targetCameraPos.set(divPos.x, divPos.y + 6.0, divPos.z + 7.5);
+    }
+  }
+
+  // Animación del Pin Activo
+  orgPinsGroup.children.forEach(p => {
+    if (p.userData.unitId === id) {
+      p.userData.head.scale.set(1.4, 1.4, 1.4);
+    } else {
+      p.userData.head.scale.set(1, 1, 1);
+    }
+  });
+
+  // Mostrar datos en Panel Derecho
+  document.getElementById('detail-title').textContent = unit.nombre.toUpperCase();
+  document.getElementById('school-logo').classList.add('hidden'); // Escudos genéricos o específicos
+  
+  // Ocultar video de escuelas
+  const videoEl = document.getElementById('school-video');
+  videoEl.classList.add('hidden');
+  videoEl.pause();
+  
+  // Colocar imagen por defecto militar
+  const imgEl = document.getElementById('school-img');
+  imgEl.src = "assets/images/infantry.jpg"; // Placeholder general
+  imgEl.classList.remove('hidden');
+
+  document.getElementById('school-motto').textContent = unit.lema ? `"${unit.lema}"` : '"Patria o Muerte"';
+  
+  // Campos del Grid de datos
+  const labelField1 = document.getElementById('label-field-1');
+  const labelField2 = document.getElementById('label-field-2');
+  const labelField3 = document.getElementById('label-field-3');
+  
+  const specialtyValue = document.getElementById('school-specialty');
+  const deptValue = document.getElementById('school-dept');
+  const foundedValue = document.getElementById('school-founded');
+  const descValue = document.getElementById('school-desc');
+
+  if (type === 'division') {
+    labelField1.textContent = "MACROREGIÓN:";
+    specialtyValue.textContent = parentDivision.macroregion.toUpperCase();
+    specialtyValue.style.color = "var(--neon-cyan)";
+    
+    labelField2.textContent = "CUARTEL GENERAL:";
+    deptValue.textContent = parentDivision.cuartel_general.toUpperCase();
+    
+    labelField3.textContent = "COMANDO GENERAL:";
+    foundedValue.textContent = "GENERAL DE DIVISIÓN EP";
+    
+    descValue.textContent = unit.reseña;
+  } else if (type === 'brigade') {
+    labelField1.textContent = "TIPO:";
+    specialtyValue.textContent = "BRIGADA OPERATIVA";
+    specialtyValue.style.color = "var(--neon-green)";
+    
+    labelField2.textContent = "DIVISIÓN MADRE:";
+    deptValue.textContent = parentDivision.nombre.toUpperCase();
+    
+    labelField3.textContent = "COMANDANTE:";
+    foundedValue.textContent = unit.comandante.toUpperCase();
+    
+    descValue.textContent = unit.reseña;
+  } else if (type === 'battalion') {
+    labelField1.textContent = "ARMA/ESPECIALIDAD:";
+    specialtyValue.textContent = unit.nombre.includes("Infantería") ? "INFANTERÍA" : "CABALLERÍA/BLINDADOS";
+    specialtyValue.style.color = "var(--neon-red)";
+    
+    labelField2.textContent = "BRIGADA DE APOYO:";
+    deptValue.textContent = parentBrigade.nombre.toUpperCase();
+    
+    labelField3.textContent = "JURISDICCIÓN SECTOR:";
+    foundedValue.textContent = parentDivision.cuartel_general.toUpperCase();
+    
+    descValue.textContent = unit.reseña;
+    
+    // Cargar escudo de batallón si existe
+    if (unit.escudo) {
+      const logoEl = document.getElementById('school-logo');
+      logoEl.src = unit.escudo;
+      logoEl.classList.remove('hidden');
+    }
+  }
+
+  // Configurar Audio Narración de la Unidad
+  setupUnitAudio(unit.audio);
+
+  // Mostrar Panel Derecho
+  panelDetails.classList.remove('hidden');
+
+  // Actualizar coordenadas FLIR
+  const targetCoords = unit.coords ? unit.coords : parentDivision.coords;
+  document.getElementById('telemetry-lat').textContent = targetCoords.lat.toFixed(4);
+  document.getElementById('telemetry-lng').textContent = targetCoords.lng.toFixed(4);
+  
+  // Ocultar pestañas no aplicables
+  document.getElementById('tab-btn-hero').style.display = 'none'; // Sin héroes en brigadas
+  document.getElementById('tab-btn-tactics').style.display = 'none'; // Sin radar táctico en brigadas
+  
+  // Forzar cambio a pestaña de detalles
+  document.getElementById('tab-btn-main').click();
+
+  initMonitorSimulation(unit);
+}
+
+// Resalta todos los departamentos de una división y resetea el resto
+function highlightDivisionJurisdiction(divId) {
+  // Resetear todos
+  Object.keys(departmentsData).forEach(deptName => {
+    departmentsData[deptName].meshes.forEach(mesh => {
+      mesh.material.emissive.setHex(0x021626);
+      mesh.material.opacity = 0.82;
+    });
+  });
+
+  // Resaltar los de la división
+  const division = jurisdiccionData.ejercito_peru_jurisdicciones.divisiones.find(d => d.id_division === divId);
+  if (division) {
+    division.departamentos_abarcados.forEach(dept => {
+      const normDept = normalizeString(dept);
+      const data = departmentsData[normDept];
+      if (data) {
+        data.meshes.forEach(mesh => {
+          mesh.material.emissive.setHex(0x064e3b); // Verde oliva brillante
+          mesh.material.opacity = 0.95;
+        });
+      }
+    });
+  }
+}
+
+// Configurar Reproductor de Audio HUD
+function setupUnitAudio(audioSrc) {
+  // Detener audio anterior
+  hudAudioElement.pause();
+  hudAudioElement.src = "";
+  sounds.stopSynthVoice();
+  
+  isAudioPlaying = false;
+  playerPlayBtn.textContent = "▶ PLAY";
+  playerTrackStatus.textContent = "DETENIDO";
+  hudAudioPlayer.classList.remove('playing');
+
+  if (audioSrc) {
+    hudAudioElement.src = audioSrc;
+  }
+}
+
+// Alternar reproducción de Audio Narración
+function toggleUnitAudio() {
+  if (!hudAudioElement.src || hudAudioElement.src.includes('null') || hudAudioElement.src.slice(-1) === '/') {
+    // FALLBACK SINTETIZADO SI NO EXISTE MP3 REAL
+    if (!isAudioPlaying) {
+      isAudioPlaying = true;
+      playerPlayBtn.textContent = "⏸ PAUSA";
+      playerTrackStatus.textContent = "SINTETIZANDO AUDIO TÁCTICO...";
+      hudAudioPlayer.classList.add('playing');
+      sounds.startSynthVoice();
+      addConsoleLog("[SINTETIZADOR] GENERANDO VOZ SINTÉTICA SOBRE CANAL TÁCTICO.", "yellow");
+    } else {
+      isAudioPlaying = false;
+      playerPlayBtn.textContent = "▶ PLAY";
+      playerTrackStatus.textContent = "DETENIDO";
+      hudAudioPlayer.classList.remove('playing');
+      sounds.stopSynthVoice();
+    }
+    return;
+  }
+
+  if (hudAudioElement.paused) {
+    hudAudioElement.play()
+      .then(() => {
+        isAudioPlaying = true;
+        playerPlayBtn.textContent = "⏸ PAUSA";
+        playerTrackStatus.textContent = "REPRODUCIENDO...";
+        hudAudioPlayer.classList.add('playing');
+        addConsoleLog("[CANAL NARRACIÓN] ENLACE DE VOZ ACTIVO.", "green");
+      })
+      .catch(e => {
+        console.warn("Error reproduciendo archivo de audio, activando sintetizador fallback", e);
+        // Fallback
+        isAudioPlaying = true;
+        playerPlayBtn.textContent = "⏸ PAUSA";
+        playerTrackStatus.textContent = "MODO RADAR AUDIO (FALLBACK)...";
+        hudAudioPlayer.classList.add('playing');
+        sounds.startSynthVoice();
+      });
+  } else {
+    hudAudioElement.pause();
+    isAudioPlaying = false;
+    playerPlayBtn.textContent = "▶ PLAY";
+    playerTrackStatus.textContent = "PAUSADO";
+    hudAudioPlayer.classList.remove('playing');
+    sounds.stopSynthVoice();
+  }
+}
+
+// --- SELECCIONAR UN DEPARTAMENTO EN MODO ESCUELAS ---
 function selectDepartment(deptName) {
   const normName = normalizeString(deptName);
   
-  // Limpiar anterior
   if (hoveredDepartment) resetDepartmentHighlight(hoveredDepartment);
   
-  // Buscar departamento
   const data = departmentsData[normName];
   if (!data) return;
   
-  // Resaltar
   data.meshes.forEach(mesh => {
     mesh.material.emissive.setHex(0x064e3b);
     mesh.material.opacity = 0.95;
   });
   hoveredDepartment = normName;
   
-  // Marcar en la lista lateral
   if (departmentList) {
     const activeLi = departmentList.querySelector('li.active');
     if (activeLi) activeLi.classList.remove('active');
@@ -618,14 +1232,11 @@ function selectDepartment(deptName) {
     }
   }
   
-  // Enfocar cámara al centro del departamento
-  // Calcular caja delimitadora
   const box = new THREE.Box3();
   data.meshes.forEach(mesh => box.expandByObject(mesh));
   const center = new THREE.Vector3();
   box.getCenter(center);
   
-  // Rotar el centro adecuadamente (debido al mapa rotado)
   center.applyEuler(mapGroup.rotation);
   
   targetCameraLookAt.copy(center);
@@ -636,26 +1247,23 @@ function selectDepartment(deptName) {
   if (school) {
     selectSchool(school.id);
   } else {
-    // Cerrar panel de detalles
     panelDetails.classList.add('hidden');
     selectedSchool = null;
-    // Quitar active de pines
     pinsGroup.children.forEach(p => {
       p.userData.head.scale.set(1, 1, 1);
     });
-    addConsoleLog(`[SECTOR] ENFOQUE: ${normName} (SIN BASES DOCENTES ACTIVAS)`, "yellow");
+    addConsoleLog(`[SECTOR] ENFOQUE: ${normName} (SIN ACADEMIAS COEDE)`, "yellow");
   }
 }
 
-// Seleccionar una Escuela
+// Seleccionar una Escuela (COEDE)
 function selectSchool(schoolId) {
   const school = schoolsData.find(s => s.id === schoolId);
   if (!school) return;
   
   selectedSchool = school;
-  addConsoleLog(`[ACCESO] SOLICITANDO DATOS: ${school.name.toUpperCase()}... ENLACE EXITOSO.`, "cyan");
+  addConsoleLog(`[ACCESO] SOLICITANDO DATOS ACADEMIA: ${school.name.toUpperCase()}...`, "cyan");
   
-  // Animación del Pin
   pinsGroup.children.forEach(p => {
     if (p.userData.schoolId === schoolId) {
       p.userData.head.scale.set(1.4, 1.4, 1.4);
@@ -664,10 +1272,8 @@ function selectSchool(schoolId) {
     }
   });
   
-  // Cargar Info en Sidebar
   document.getElementById('detail-title').textContent = school.name.toUpperCase();
   
-  // Manejar Logo
   const logoEl = document.getElementById('school-logo');
   if (school.logo) {
     logoEl.src = school.logo;
@@ -677,15 +1283,13 @@ function selectSchool(schoolId) {
     logoEl.src = '';
   }
 
-  // Manejar Video / Imagen Principal
   const imgEl = document.getElementById('school-img');
   const videoEl = document.getElementById('school-video');
   if (school.video) {
     videoEl.src = school.video;
     videoEl.classList.remove('hidden');
     imgEl.classList.add('hidden');
-    // Forzar autoplay si no arranca
-    videoEl.play().catch(e => console.log('Autoplay prevent error:', e));
+    videoEl.play().catch(e => console.log('Autoplay prevent:', e));
   } else {
     videoEl.classList.add('hidden');
     videoEl.pause();
@@ -695,10 +1299,17 @@ function selectSchool(schoolId) {
   }
   
   document.getElementById('school-motto').textContent = `"${school.motto}"`;
+  
+  document.getElementById('label-field-1').textContent = "ESPECIALIDAD:";
   document.getElementById('school-specialty').textContent = school.specialty.toUpperCase();
   document.getElementById('school-specialty').style.color = school.color;
+  
+  document.getElementById('label-field-2').textContent = "SECTOR:";
   document.getElementById('school-dept').textContent = school.department.toUpperCase();
+  
+  document.getElementById('label-field-3').textContent = "FUNDADA:";
   document.getElementById('school-founded').textContent = school.founded;
+  
   document.getElementById('school-desc').textContent = school.description;
   
   // Cargar Info de Héroe
@@ -715,21 +1326,22 @@ function selectSchool(schoolId) {
   document.getElementById('hero-title').textContent = school.hero.title.toUpperCase();
   document.getElementById('hero-bio').textContent = school.hero.bio;
   
-  // Mostrar Sidebar
+  // Configurar audio de escuela (si está en la estructura de escuelas o usar sintetizador)
+  setupUnitAudio(null); // Las escuelas usan la bio en texto, cargamos reproductor vacío
+
+  // Mostrar Panel Derecho
   panelDetails.classList.remove('hidden');
   
-  // Actualizar Telemetría del Dron
+  // Telemetría
   document.getElementById('telemetry-lat').textContent = school.coords.lat.toFixed(4);
   document.getElementById('telemetry-lng').textContent = school.coords.lng.toFixed(4);
   
-  // Enfocar Cámara al Pin de la Escuela
   const proj = project(school.coords.lng, school.coords.lat);
   const pinPos3D = new THREE.Vector3(proj.x, 0.8, -proj.y);
   
   targetCameraLookAt.copy(pinPos3D);
   targetCameraPos.set(pinPos3D.x, pinPos3D.y + 4.5, pinPos3D.z + 5.5);
   
-  // Asegurarnos de marcar el departamento activo en la lista lateral
   if (departmentList) {
     const activeLi = departmentList.querySelector('li.active');
     if (activeLi) activeLi.classList.remove('active');
@@ -741,14 +1353,15 @@ function selectSchool(schoolId) {
     }
   }
   
-  // Reiniciar y animar gráfico de radar
+  // Mostrar pestañas completas
+  document.getElementById('tab-btn-hero').style.display = 'block';
+  document.getElementById('tab-btn-tactics').style.display = 'block';
+
+  // Reactivar radar y monitor
   initRadarAnimation(school);
-  
-  // Reiniciar y calibrar monitor
   initMonitorSimulation(school);
 }
 
-// Resetear Iluminación del Departamento
 function resetDepartmentHighlight(deptName) {
   const data = departmentsData[normalizeString(deptName)];
   if (!data) return;
@@ -756,6 +1369,63 @@ function resetDepartmentHighlight(deptName) {
     mesh.material.emissive.setHex(0x021626);
     mesh.material.opacity = 0.82;
   });
+}
+
+// --- CONTROLADOR DE SWITCH DE MODOS ---
+function switchMode(mode) {
+  currentMode = mode;
+  
+  // Cerrar paneles y módulos abiertos
+  panelDetails.classList.add('hidden');
+  historyModule.classList.add('hidden');
+  cmsModule.classList.add('hidden');
+  hudAudioElement.pause();
+  sounds.stopSynthVoice();
+
+  // Actualizar botones de navegación
+  [navOrg, navSchools, navHistory, navCms].forEach(btn => btn.classList.remove('active'));
+  
+  if (mode === 'org') {
+    navOrg.classList.add('active');
+    panelLeft.classList.remove('hidden');
+    orgControls.classList.remove('hidden');
+    schoolsControls.classList.add('hidden');
+    
+    // Visibilidad de pines 3d
+    pinsGroup.visible = false;
+    orgPinsGroup.visible = true;
+    
+    // Resetear cámara
+    btnReset.click();
+    addConsoleLog("MODO ACTIVO: ESTRUCTURA ORGÁNICA E INFRAESTRUCTURA TÁCTICA.", "cyan");
+  } 
+  else if (mode === 'schools') {
+    navSchools.classList.add('active');
+    panelLeft.classList.remove('hidden');
+    schoolsControls.classList.remove('hidden');
+    orgControls.classList.add('hidden');
+    
+    pinsGroup.visible = true;
+    orgPinsGroup.visible = false;
+    
+    btnReset.click();
+    addConsoleLog("MODO ACTIVO: ESCUELAS DE CAPACITACIÓN Y DOCTRINA (COEDE).", "cyan");
+  } 
+  else if (mode === 'history') {
+    navHistory.classList.add('active');
+    panelLeft.classList.add('hidden'); // Ocultar left sidebar
+    historyModule.classList.remove('hidden');
+    
+    addConsoleLog("MODO ACTIVO: HISTORIA Y LÍNEA DE TIEMPO DEL EJÉRCITO.", "cyan");
+    initHistoryTimeline();
+  } 
+  else if (mode === 'cms') {
+    navCms.classList.add('active');
+    panelLeft.classList.add('hidden');
+    cmsModule.classList.remove('hidden');
+    
+    addConsoleLog("MODO ACTIVO: CONFIGURADOR DE CONTENIDOS TÁCTICOS.", "yellow");
+  }
 }
 
 // --- RENDERIZACIÓN DE GRÁFICO DE RADAR ---
@@ -767,9 +1437,11 @@ function initRadarAnimation(school) {
   radarProgress = 0;
   
   const canvas = document.getElementById('radar-canvas');
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const statsKeys = Object.keys(school.stats);
-  const statsValues = Object.values(school.stats);
+  
+  const statsKeys = school.stats ? Object.keys(school.stats) : ["Táctica", "Combate", "Tecnología", "Movilidad", "Supervivencia"];
+  const statsValues = school.stats ? Object.values(school.stats) : [80, 80, 80, 80, 80];
   
   const draw = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -779,7 +1451,6 @@ function initRadarAnimation(school) {
     const radius = 90;
     const totalAxes = statsKeys.length;
     
-    // Dibujar rejilla concéntrica del radar (5 niveles)
     ctx.strokeStyle = 'rgba(16, 185, 129, 0.15)';
     ctx.lineWidth = 1;
     
@@ -797,7 +1468,7 @@ function initRadarAnimation(school) {
       ctx.stroke();
     }
     
-    // Dibujar Ejes
+    // Ejes
     ctx.beginPath();
     for (let i = 0; i < totalAxes; i++) {
       const angle = (i * 2 * Math.PI) / totalAxes - Math.PI / 2;
@@ -806,7 +1477,7 @@ function initRadarAnimation(school) {
     }
     ctx.stroke();
     
-    // Dibujar los Textos de las Etiquetas
+    // Textos de Etiquetas
     ctx.fillStyle = '#94a3b8';
     ctx.font = '10px "Share Tech Mono"';
     ctx.textAlign = 'center';
@@ -819,9 +1490,9 @@ function initRadarAnimation(school) {
       ctx.fillText(statsKeys[i].toUpperCase(), x, y);
     }
     
-    // Dibujar el polígono de estadísticas (escalado por el progreso)
-    ctx.fillStyle = `${school.color}25`; // Transparente
-    ctx.strokeStyle = school.color;
+    // Polígono de estadísticas
+    ctx.fillStyle = `${school.color || '#10b981'}25`;
+    ctx.strokeStyle = school.color || '#10b981';
     ctx.lineWidth = 2;
     
     ctx.beginPath();
@@ -838,7 +1509,7 @@ function initRadarAnimation(school) {
     ctx.fill();
     ctx.stroke();
     
-    // Dibujar pequeños nodos en las puntas del polígono
+    // Nodos
     ctx.fillStyle = '#fff';
     for (let i = 0; i < totalAxes; i++) {
       const angle = (i * 2 * Math.PI) / totalAxes - Math.PI / 2;
@@ -852,7 +1523,6 @@ function initRadarAnimation(school) {
     }
   };
   
-  // Lanzar bucle de animación para la gráfica
   radarInterval = setInterval(() => {
     radarProgress += 0.05;
     if (radarProgress >= 1.0) {
@@ -871,57 +1541,48 @@ let thermalMode = true;
 let targetX = 150, targetY = 90;
 let curTargetX = 150, curTargetY = 90;
 
-// Elementos de telemetría cambiantes
 let altVal = 4200;
 let spdVal = 120;
 
-function initMonitorSimulation(school) {
+function initMonitorSimulation(unit) {
   if (monitorAnimId) cancelAnimationFrame(monitorAnimId);
   
   monitorCanvas = document.getElementById('monitor-canvas');
+  if (!monitorCanvas) return;
   monitorCtx = monitorCanvas.getContext('2d');
   
   const w = monitorCanvas.width;
   const h = monitorCanvas.height;
   
-  // Inicialización de manchas térmicas flotantes (heat maps)
   const heatBlobs = Array.from({ length: 5 }, () => ({
     x: Math.random() * w,
     y: Math.random() * h,
     r: 15 + Math.random() * 25,
-    color: Math.random() > 0.5 ? 'rgba(239, 68, 68, 0.45)' : 'rgba(245, 158, 11, 0.45)', // rojo o naranja
+    color: Math.random() > 0.5 ? 'rgba(239, 68, 68, 0.45)' : 'rgba(245, 158, 11, 0.45)',
     vx: (Math.random() - 0.5) * 0.4,
     vy: (Math.random() - 0.5) * 0.4
   }));
 
   const drawMonitor = () => {
-    // Fondo dependiente del modo térmico (verde militar vs escala de grises/térmico)
     if (thermalMode) {
-      // Modo Térmico: Azul oscuro, verde, rojo
       monitorCtx.fillStyle = '#020617';
       monitorCtx.fillRect(0, 0, w, h);
-      
-      // Fondo de radiación verde
       monitorCtx.fillStyle = 'rgba(16, 185, 129, 0.03)';
       monitorCtx.fillRect(0, 0, w, h);
     } else {
-      // Modo CRT Nocturno Verde
       monitorCtx.fillStyle = '#022c22';
       monitorCtx.fillRect(0, 0, w, h);
     }
 
-    // Dibujar la rejilla HUD
     monitorCtx.strokeStyle = thermalMode ? 'rgba(6, 182, 212, 0.15)' : 'rgba(16, 185, 129, 0.2)';
     monitorCtx.lineWidth = 0.5;
     
-    // Líneas verticales
     for (let x = 0; x < w; x += 20) {
       monitorCtx.beginPath();
       monitorCtx.moveTo(x, 0);
       monitorCtx.lineTo(x, h);
       monitorCtx.stroke();
     }
-    // Líneas horizontales
     for (let y = 0; y < h; y += 20) {
       monitorCtx.beginPath();
       monitorCtx.moveTo(0, y);
@@ -929,21 +1590,19 @@ function initMonitorSimulation(school) {
       monitorCtx.stroke();
     }
 
-    // Actualizar y dibujar las manchas de calor (sólo en modo térmico)
     if (thermalMode) {
       heatBlobs.forEach(blob => {
         blob.x += blob.vx;
         blob.y += blob.vy;
         
-        // Rebote en bordes
         if (blob.x - blob.r < 0 || blob.x + blob.r > w) blob.vx *= -1;
         if (blob.y - blob.r < 0 || blob.y + blob.r > h) blob.vy *= -1;
         
         const grad = monitorCtx.createRadialGradient(blob.x, blob.y, 2, blob.x, blob.y, blob.r);
-        grad.addColorStop(0, '#ffffff'); // Núcleo caliente blanco
-        grad.addColorStop(0.2, '#f59e0b'); // Amarillo caliente
-        grad.addColorStop(0.5, '#ef4444'); // Rojo medio
-        grad.addColorStop(0.9, 'rgba(59, 130, 246, 0.15)'); // Azul frío
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.2, '#f59e0b');
+        grad.addColorStop(0.5, '#ef4444');
+        grad.addColorStop(0.9, 'rgba(59, 130, 246, 0.15)');
         grad.addColorStop(1, 'transparent');
         
         monitorCtx.fillStyle = grad;
@@ -952,11 +1611,9 @@ function initMonitorSimulation(school) {
         monitorCtx.fill();
       });
     } else {
-      // Dibujar contornos simulados en verde nocturno
       monitorCtx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
       monitorCtx.lineWidth = 1.5;
       
-      // Montañas de fondo simuladas con líneas sinusoidales
       monitorCtx.beginPath();
       monitorCtx.moveTo(0, h - 30);
       for (let x = 0; x < w; x += 10) {
@@ -970,25 +1627,20 @@ function initMonitorSimulation(school) {
       monitorCtx.stroke();
     }
 
-    // Deriva del objetivo (Crosshair)
     if (Math.random() < 0.02) {
       targetX = w/2 + (Math.random() - 0.5) * 60;
       targetY = h/2 + (Math.random() - 0.5) * 40;
     }
-    // Interpolación suave del visor
     curTargetX += (targetX - curTargetX) * 0.05;
     curTargetY += (targetY - curTargetY) * 0.05;
 
-    // Dibujar la Mira de Bloqueo
     monitorCtx.strokeStyle = thermalMode ? '#0ea5e9' : '#10b981';
     monitorCtx.lineWidth = 1;
     
-    // Círculo Central
     monitorCtx.beginPath();
     monitorCtx.arc(curTargetX, curTargetY, 15, 0, Math.PI * 2);
     monitorCtx.stroke();
     
-    // Cruz
     monitorCtx.beginPath();
     monitorCtx.moveTo(curTargetX - 25, curTargetY);
     monitorCtx.lineTo(curTargetX - 5, curTargetY);
@@ -1000,10 +1652,8 @@ function initMonitorSimulation(school) {
     monitorCtx.lineTo(curTargetX, curTargetY + 25);
     monitorCtx.stroke();
     
-    // Cuadros esquinas del visor
     monitorCtx.strokeRect(20, 20, w - 40, h - 40);
 
-    // Ruido y Estática de Señal (Noise overlay)
     monitorCtx.fillStyle = 'rgba(255, 255, 255, 0.04)';
     for (let i = 0; i < 400; i++) {
       const rx = Math.random() * w;
@@ -1011,12 +1661,10 @@ function initMonitorSimulation(school) {
       monitorCtx.fillRect(rx, ry, 1, 1);
     }
     
-    // Línea de barrido vertical CRT (Scan bar)
     const scanBarY = (Date.now() * 0.08) % h;
     monitorCtx.fillStyle = 'rgba(16, 185, 129, 0.07)';
     monitorCtx.fillRect(0, scanBarY, w, 2);
 
-    // Texto HUD interno en monitor
     monitorCtx.fillStyle = thermalMode ? '#0ea5e9' : '#10b981';
     monitorCtx.font = '8px "Share Tech Mono"';
     monitorCtx.textAlign = 'left';
@@ -1027,7 +1675,6 @@ function initMonitorSimulation(school) {
     monitorCtx.fillText(`ZOOM: 16.2X`, w - 25, 32);
     monitorCtx.fillText(`FRM: 60FPS`, w - 25, 42);
     
-    // Variar telemetría
     if (Math.random() < 0.05) {
       altVal += Math.floor((Math.random() - 0.5) * 5);
       spdVal += Math.floor((Math.random() - 0.5) * 3);
@@ -1053,79 +1700,383 @@ function addConsoleLog(text, colorClass = "") {
   
   consoleLogs.appendChild(line);
   
-  // Limitar logs a 15 líneas para evitar saturación de memoria DOM
   while (consoleLogs.children.length > 20) {
     consoleLogs.removeChild(consoleLogs.firstChild);
   }
   
-  // Autoscroll
   consoleLogs.scrollTop = consoleLogs.scrollHeight;
+}
+
+// --- INTERFAZ LÍNEA DE TIEMPO HISTÓRICA ---
+let activeHistoryIndex = 0;
+
+function initHistoryTimeline() {
+  const container = document.getElementById('timeline-events-container');
+  if (!container) return;
+  container.innerHTML = "";
+  
+  historyEvents.forEach((ev, idx) => {
+    const node = document.createElement('div');
+    node.className = `timeline-event-node ${idx === activeHistoryIndex ? 'active' : ''}`;
+    node.innerHTML = `
+      <div class="event-year">${ev.year}</div>
+      <div class="event-dot"></div>
+      <div class="event-title-short">${ev.title.toUpperCase()}</div>
+    `;
+    
+    node.addEventListener('click', () => {
+      sounds.playClick();
+      selectHistoryEvent(idx);
+    });
+    
+    container.appendChild(node);
+  });
+  
+  selectHistoryEvent(activeHistoryIndex);
+}
+
+function selectHistoryEvent(idx) {
+  activeHistoryIndex = idx;
+  
+  // Actualizar nodos activos
+  const nodes = document.querySelectorAll('.timeline-event-node');
+  nodes.forEach((n, i) => {
+    if (i === idx) n.classList.add('active');
+    else n.classList.remove('active');
+  });
+
+  const ev = historyEvents[idx];
+  const detailPanel = document.getElementById('timeline-detail');
+  if (!detailPanel) return;
+  
+  detailPanel.innerHTML = `
+    <img src="${ev.image}" class="timeline-detail-img" alt="${ev.title}" onerror="this.src='assets/images/infantry.jpg'">
+    <div class="timeline-detail-text">
+      <h3>${ev.year} • ${ev.title.toUpperCase()}</h3>
+      <h4>${ev.subtitle.toUpperCase()}</h4>
+      <p>${ev.desc}</p>
+    </div>
+  `;
+
+  // Desplazar contenedor horizontal
+  const container = document.getElementById('timeline-events-container');
+  const activeNode = nodes[idx];
+  if (container && activeNode) {
+    const wrapper = container.parentElement;
+    const scrollPos = activeNode.offsetLeft - wrapper.offsetWidth / 2 + activeNode.offsetWidth / 2;
+    container.style.transform = `translateX(${-scrollPos}px)`;
+  }
+}
+
+// --- INTERFAZ CMS (ADMINISTRADOR) ---
+function populateCmsUnitSelector() {
+  const selector = document.getElementById('cms-unit-selector');
+  if (!selector) return;
+  selector.innerHTML = "";
+  
+  // 1. Añadir Divisiones
+  const optGroupDiv = document.createElement('optgroup');
+  optGroupDiv.label = "DIVISIONES DE EJÉRCITO";
+  orgData.divisiones.forEach(div => {
+    const opt = document.createElement('option');
+    opt.value = `division|${div.id}`;
+    opt.textContent = div.nombre;
+    optGroupDiv.appendChild(opt);
+  });
+  selector.appendChild(optGroupDiv);
+
+  // 2. Añadir Brigadas
+  const optGroupBrig = document.createElement('optgroup');
+  optGroupBrig.label = "BRIGADAS TÁCTICAS";
+  orgData.divisiones.forEach(div => {
+    div.brigadas.forEach(brig => {
+      const opt = document.createElement('option');
+      opt.value = `brigade|${brig.id}`;
+      opt.textContent = `${div.nombre.split(" ")[0]} - ${brig.nombre}`;
+      optGroupBrig.appendChild(opt);
+    });
+  });
+  selector.appendChild(optGroupBrig);
+
+  // 3. Añadir Batallones
+  const optGroupBat = document.createElement('optgroup');
+  optGroupBat.label = "BATALLONES";
+  orgData.divisiones.forEach(div => {
+    div.brigadas.forEach(brig => {
+      brig.batallones.forEach(bat => {
+        const opt = document.createElement('option');
+        opt.value = `battalion|${bat.id}`;
+        opt.textContent = `${brig.nombre.split(" ")[0]} - ${bat.nombre}`;
+        optGroupBat.appendChild(opt);
+      });
+    });
+  });
+  selector.appendChild(optGroupBat);
+
+  // 4. Añadir Escuelas (COEDE)
+  const optGroupSchool = document.createElement('optgroup');
+  optGroupSchool.label = "ACADEMIAS MILITARES (COEDE)";
+  schoolsData.forEach(sch => {
+    const opt = document.createElement('option');
+    opt.value = `school|${sch.id}`;
+    opt.textContent = sch.name;
+    optGroupSchool.appendChild(opt);
+  });
+  selector.appendChild(optGroupSchool);
+
+  // Evento al cambiar de unidad en selector CMS
+  selector.addEventListener('change', loadUnitIntoCmsForm);
+  loadUnitIntoCmsForm();
+}
+
+function loadUnitIntoCmsForm() {
+  const selector = document.getElementById('cms-unit-selector');
+  if (!selector) return;
+  const [type, id] = selector.value.split('|');
+  
+  const form = document.getElementById('cms-edit-form');
+  const comGroup = document.getElementById('cms-commander-group');
+  
+  let unit = null;
+  
+  if (type === 'division') {
+    unit = orgData.divisiones.find(d => d.id === id);
+    comGroup.style.display = 'none';
+  } else if (type === 'brigade') {
+    orgData.divisiones.forEach(d => {
+      const b = d.brigadas.find(br => br.id === id);
+      if (b) unit = b;
+    });
+    comGroup.style.display = 'flex';
+    document.querySelector('label[for="cms-commander"]').textContent = "Comandante General:";
+  } else if (type === 'battalion') {
+    orgData.divisiones.forEach(d => {
+      d.brigadas.forEach(br => {
+        const bat = br.batallones.find(bt => bt.id === id);
+        if (bat) unit = bat;
+      });
+    });
+    comGroup.style.display = 'none';
+  } else if (type === 'school') {
+    unit = schoolsData.find(s => s.id === id);
+    comGroup.style.display = 'flex';
+    document.querySelector('label[for="cms-commander"]').textContent = "Fundación (Año):";
+  }
+
+  if (unit) {
+    document.getElementById('cms-name').value = unit.nombre || unit.name || "";
+    document.getElementById('cms-motto').value = unit.lema || unit.motto || "";
+    document.getElementById('cms-commander').value = unit.comandante || unit.founded || "";
+    document.getElementById('cms-lat').value = unit.coords ? unit.coords.lat : "";
+    document.getElementById('cms-lng').value = unit.coords ? unit.coords.lng : "";
+    document.getElementById('cms-description').value = unit.reseña || unit.description || "";
+    document.getElementById('cms-audio').value = unit.audio || "";
+  }
+}
+
+function saveCmsChanges(e) {
+  e.preventDefault();
+  sounds.playSweep();
+
+  const selector = document.getElementById('cms-unit-selector');
+  const [type, id] = selector.value.split('|');
+  
+  const nameVal = document.getElementById('cms-name').value;
+  const mottoVal = document.getElementById('cms-motto').value;
+  const comVal = document.getElementById('cms-commander').value;
+  const latVal = parseFloat(document.getElementById('cms-lat').value);
+  const lngVal = parseFloat(document.getElementById('cms-lng').value);
+  const descVal = document.getElementById('cms-description').value;
+  const audioVal = document.getElementById('cms-audio').value;
+
+  if (type === 'school') {
+    const idx = schoolsData.findIndex(s => s.id === id);
+    if (idx !== -1) {
+      schoolsData[idx].name = nameVal;
+      schoolsData[idx].motto = mottoVal;
+      schoolsData[idx].founded = parseInt(comVal) || schoolsData[idx].founded;
+      if (schoolsData[idx].coords) {
+        schoolsData[idx].coords.lat = latVal;
+        schoolsData[idx].coords.lng = lngVal;
+      }
+      schoolsData[idx].description = descVal;
+      schoolsData[idx].audio = audioVal;
+      
+      localStorage.setItem('ejercito_mvp_schools_data', JSON.stringify(schoolsData));
+      
+      // Recrear pines
+      createSchoolPins();
+    }
+  } else {
+    // Buscar en estructura orgánica
+    if (type === 'division') {
+      const idx = orgData.divisiones.findIndex(d => d.id === id);
+      if (idx !== -1) {
+        orgData.divisiones[idx].nombre = nameVal;
+        orgData.divisiones[idx].lema = mottoVal;
+        if (orgData.divisiones[idx].coords) {
+          orgData.divisiones[idx].coords.lat = latVal;
+          orgData.divisiones[idx].coords.lng = lngVal;
+        }
+        orgData.divisiones[idx].reseña = descVal;
+        orgData.divisiones[idx].audio = audioVal;
+      }
+    } else if (type === 'brigade') {
+      orgData.divisiones.forEach((d, dIdx) => {
+        const bIdx = d.brigadas.findIndex(br => br.id === id);
+        if (bIdx !== -1) {
+          orgData.divisiones[dIdx].brigadas[bIdx].nombre = nameVal;
+          orgData.divisiones[dIdx].brigadas[bIdx].lema = mottoVal;
+          orgData.divisiones[dIdx].brigadas[bIdx].comandante = comVal;
+          orgData.divisiones[dIdx].brigadas[bIdx].reseña = descVal;
+          orgData.divisiones[dIdx].brigadas[bIdx].audio = audioVal;
+        }
+      });
+    } else if (type === 'battalion') {
+      orgData.divisiones.forEach((d, dIdx) => {
+        d.brigadas.forEach((br, bIdx) => {
+          const batIdx = br.batallones.findIndex(bt => bt.id === id);
+          if (batIdx !== -1) {
+            orgData.divisiones[dIdx].brigadas[bIdx].batallones[batIdx].nombre = nameVal;
+            orgData.divisiones[dIdx].brigadas[bIdx].batallones[batIdx].lema = mottoVal;
+            if (orgData.divisiones[dIdx].brigadas[bIdx].batallones[batIdx].coords) {
+              orgData.divisiones[dIdx].brigadas[bIdx].batallones[batIdx].coords.lat = latVal;
+              orgData.divisiones[dIdx].brigadas[bIdx].batallones[batIdx].coords.lng = lngVal;
+            }
+            orgData.divisiones[dIdx].brigadas[bIdx].batallones[batIdx].reseña = descVal;
+            orgData.divisiones[dIdx].brigadas[bIdx].batallones[batIdx].audio = audioVal;
+          }
+        });
+      });
+    }
+    
+    localStorage.setItem('ejercito_mvp_org_data', JSON.stringify(orgData));
+    
+    // Recrear pines orgánicos y repoblar árbol
+    createOrganicPins();
+    populateOrganicTree();
+  }
+
+  addConsoleLog(`[CMS] CAMBIOS REGISTRADOS Y APLICADOS EN ${nameVal.toUpperCase()}`, "green");
+  
+  // Switch back to the modified mode to see changes
+  if (type === 'school') {
+    switchMode('schools');
+    selectSchool(id);
+  } else {
+    switchMode('org');
+    selectOrganicUnit(type, id);
+  }
 }
 
 // --- EVENTOS Y BINDINGS ---
 function setupEventListeners() {
-  // Ajuste de Ventana
   window.addEventListener('resize', onWindowResize);
-  
-  // Evento mousemove sobre canvas para Raycasting
   window.addEventListener('mousemove', onMouseMove);
-  
-  // Clic sobre el lienzo 3D
   window.addEventListener('click', onClick);
   
-  // Reiniciar Vista
+  // Navigation Tabs Switcher
+  navOrg.addEventListener('click', () => { sounds.playClick(); switchMode('org'); });
+  navSchools.addEventListener('click', () => { sounds.playClick(); switchMode('schools'); });
+  navHistory.addEventListener('click', () => { sounds.playClick(); switchMode('history'); });
+  navCms.addEventListener('click', () => { sounds.playClick(); switchMode('cms'); });
+
+  // Close full modules
+  document.getElementById('btn-close-history').addEventListener('click', () => {
+    sounds.playClick();
+    switchMode('org');
+  });
+  
+  document.getElementById('btn-close-cms').addEventListener('click', () => {
+    sounds.playClick();
+    switchMode('org');
+  });
+
+  // CMS Form Submit
+  document.getElementById('cms-edit-form').addEventListener('submit', saveCmsChanges);
+  
+  // CMS Reset DB
+  document.getElementById('cms-btn-reset-db').addEventListener('click', () => {
+    sounds.playSweep();
+    localStorage.removeItem('ejercito_mvp_schools_data');
+    localStorage.removeItem('ejercito_mvp_org_data');
+    addConsoleLog("[SISTEMA] RESTABLECIENDO BASE DE DATOS DE FÁBRICA. REINICIANDO...", "yellow");
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  });
+
+  // Play Button en Reproductor HUD
+  playerPlayBtn.addEventListener('click', () => {
+    sounds.playClick();
+    toggleUnitAudio();
+  });
+
+  // Resetear Vista General
   btnReset.addEventListener('click', () => {
     sounds.playClick();
-    addConsoleLog("SISTEMA DE CÁMARA RESTABLECIDO A VISTA GLOBAL PERÚ.", "cyan");
+    addConsoleLog("CÁMARA RESTABLECIDA A VISTA TÁCTICA GLOBAL PERÚ.", "cyan");
     
-    // Resetear posición de cámara
     targetCameraPos.set(0, 18, 14);
     targetCameraLookAt.set(0, -1, 0);
     
-    // Cerrar panel lateral de detalles
     panelDetails.classList.add('hidden');
-    
-    // Detener video si hay
-    const videoEl = document.getElementById('school-video');
-    if (videoEl) {
-      videoEl.pause();
-      videoEl.src = '';
-    }
+    hudAudioElement.pause();
+    sounds.stopSynthVoice();
     
     selectedSchool = null;
+    selectedOrgUnit = null;
     
-    // Quitar active de la lista lateral
+    // Quitar active de lista escuelas
     if (departmentList) {
       const activeLi = departmentList.querySelector('li.active');
       if (activeLi) activeLi.classList.remove('active');
     }
     
-    // Resetear todos los highlights y escalas
+    // Quitar active de árbol orgánico
+    const treeContainer = document.getElementById('org-tree');
+    if (treeContainer) {
+      treeContainer.querySelectorAll('.tree-node.active, .tree-subnode.active').forEach(n => {
+        n.classList.remove('active');
+      });
+    }
+    
+    // Resetear highlights del mapa
     if (hoveredDepartment) {
       resetDepartmentHighlight(hoveredDepartment);
       hoveredDepartment = null;
+    } else {
+      // Apagar todos los emisivos
+      Object.keys(departmentsData).forEach(deptName => {
+        departmentsData[deptName].meshes.forEach(mesh => {
+          mesh.material.emissive.setHex(0x021626);
+          mesh.material.opacity = 0.82;
+        });
+      });
     }
-    pinsGroup.children.forEach(p => {
-      p.userData.head.scale.set(1, 1, 1);
-    });
+
+    pinsGroup.children.forEach(p => p.userData.head.scale.set(1, 1, 1));
+    orgPinsGroup.children.forEach(p => p.userData.head.scale.set(1, 1, 1));
   });
   
-  // Alternar Audio
+  // Alternar Audio General
   btnAudio.addEventListener('click', () => {
     const isEnabled = btnAudio.classList.contains('active');
     if (isEnabled) {
       btnAudio.classList.remove('active');
       document.getElementById('audio-status').textContent = "OFF";
       sounds.toggle(false);
+      hudAudioElement.muted = true;
     } else {
       sounds.init();
       btnAudio.classList.add('active');
       document.getElementById('audio-status').textContent = "ON";
       sounds.toggle(true);
       sounds.playClick();
+      hudAudioElement.muted = false;
     }
   });
-  // Autoactivar audio con primer clic en la pantalla (debido a políticas de navegadores)
+
   document.body.addEventListener('click', () => {
     if (!sounds.ctx && btnAudio.classList.contains('active')) {
       sounds.init();
@@ -1133,22 +2084,21 @@ function setupEventListeners() {
       document.getElementById('audio-status').textContent = "ON";
     }
   }, { once: true });
-  // Marcar botón activo al inicio
+  
   btnAudio.classList.add('active');
 
-  // Filtros de Especialidad
+  // Filtros de Especialidad para escuelas
   const filterBtns = document.querySelectorAll('.filter-btn');
   filterBtns.forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', () => {
       sounds.playClick();
       
-      // Cambiar clases activas
       filterBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
       const specialty = btn.dataset.specialty;
       filterPinsBySpecialty(specialty);
-      addConsoleLog(`[FILTRO] APLICADO: ESPECIALIDAD - ${specialty.toUpperCase()}`, "yellow");
+      addConsoleLog(`[FILTRO COEDE] APLICADO: ${specialty.toUpperCase()}`, "yellow");
     });
   });
   
@@ -1157,7 +2107,6 @@ function setupEventListeners() {
     searchInput.addEventListener('input', (e) => {
       const value = e.target.value.toLowerCase().trim();
       
-      // Filtrar la lista de la barra lateral
       if (departmentList) {
         Array.from(departmentList.children).forEach(li => {
           const deptName = li.dataset.dept.toLowerCase();
@@ -1174,7 +2123,6 @@ function setupEventListeners() {
         });
       }
 
-      // Ocultar/Mostrar pines en 3D
       pinsGroup.children.forEach(pin => {
         const school = pin.userData.school;
         const matchesSearch = school.name.toLowerCase().includes(value) || 
@@ -1192,18 +2140,16 @@ function setupEventListeners() {
   document.getElementById('btn-close-details').addEventListener('click', () => {
     sounds.playClick();
     panelDetails.classList.add('hidden');
+    hudAudioElement.pause();
+    sounds.stopSynthVoice();
     
-    // Detener video si hay
     const videoEl = document.getElementById('school-video');
-    if (videoEl) {
-      videoEl.pause();
-      videoEl.src = '';
-    }
+    videoEl.pause();
     
     selectedSchool = null;
-    pinsGroup.children.forEach(p => {
-      p.userData.head.scale.set(1, 1, 1);
-    });
+    selectedOrgUnit = null;
+    pinsGroup.children.forEach(p => p.userData.head.scale.set(1, 1, 1));
+    orgPinsGroup.children.forEach(p => p.userData.head.scale.set(1, 1, 1));
   });
   
   // Pestañas de Detalle
@@ -1227,30 +2173,33 @@ function setupEventListeners() {
     });
   });
 
-  // Conmutador de modo térmico del monitor
+  // Conmutador térmico del monitor FLIR
   document.getElementById('btn-thermal-toggle').addEventListener('click', () => {
     sounds.playClick();
     thermalMode = !thermalMode;
-    addConsoleLog(`[MONITOR] CONMUTANDO MODO DE VIDEO TÁCTICO... MODO ${thermalMode ? 'TERMOGRÁFICO' : 'CRT VERDE'}.`, "cyan");
+    addConsoleLog(`[MONITOR FLIR] CONMUTANDO FILTRO: MODO ${thermalMode ? 'TERMOGRÁFICO' : 'CRT VISIÓN NOCTURNA'}.`, "cyan");
   });
   
   // Recalibrar monitor
   document.getElementById('btn-monitor-reset').addEventListener('click', () => {
     sounds.playSweep();
-    addConsoleLog("[MONITOR] INICIANDO CALIBRACIÓN DEL SENSOR FLIR...", "yellow");
+    addConsoleLog("[MONITOR FLIR] INICIANDO CALIBRACIÓN DEL SENSOR...", "yellow");
     altVal = 4200 + Math.floor(Math.random() * 200);
     spdVal = 110 + Math.floor(Math.random() * 20);
   });
 
-  // Botón Ejecutar Reconocimiento Geográfico
-  document.getElementById('btn-geo-recon')?.addEventListener('click', () => {
-    if (selectedSchool) {
-      sounds.playSweep();
-      addConsoleLog(`[RECONOCIMIENTO] DISPARANDO BARRIDO DE TELEMETRÍA EN ${selectedSchool.department.toUpperCase()}`, "green");
-      // Animación sacudida de cámara sutil para simular escaneo
-      setTimeout(() => {
-        addConsoleLog(`[RECONOCIMIENTO] OBJETIVO FIJADO EN ALTURA DEL DISTRITO DE FORMACIÓN.`, "green");
-      }, 600);
+  // Línea de Tiempo Evento Prev y Next
+  document.getElementById('btn-timeline-prev').addEventListener('click', () => {
+    if (activeHistoryIndex > 0) {
+      sounds.playClick();
+      selectHistoryEvent(activeHistoryIndex - 1);
+    }
+  });
+
+  document.getElementById('btn-timeline-next').addEventListener('click', () => {
+    if (activeHistoryIndex < historyEvents.length - 1) {
+      sounds.playClick();
+      selectHistoryEvent(activeHistoryIndex + 1);
     }
   });
 }
@@ -1260,8 +2209,6 @@ function filterPinsBySpecialty(specialty) {
     const school = pin.userData.school;
     const isVisible = (specialty === 'all' || school.specialty_key === specialty);
     pin.visible = isVisible;
-    
-    // Ocultar/mostrar etiqueta flotante
     const label = pin.userData.labelDiv;
     if (label) {
       label.style.opacity = isVisible ? "1" : "0";
@@ -1269,76 +2216,115 @@ function filterPinsBySpecialty(specialty) {
   });
 }
 
-// Redimensionamiento de Ventana
 function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// Movimiento del Mouse (Raycasting & Coordenadas)
+// Raycasting e Interacción del Ratón
 function onMouseMove(event) {
-  // Coordenadas normalizadas del ratón
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
   
-  // Actualizar coordenadas en el HUD (conversión simulada en el Perú)
   const mapLat = (mouse.y * 10 - 9.19).toFixed(5);
   const mapLng = (mouse.x * 10 - 74.87).toFixed(5);
   if (mouseCoordsEl) mouseCoordsEl.textContent = `LAT: ${mapLat} | LNG: ${mapLng}`;
   
-  // Realizar Raycasting
   raycaster.setFromCamera(mouse, camera);
   
-  // 1. Raycast para pines (prioridad)
-  const pinIntersects = raycaster.intersectObjects(pinInteractionMeshes);
+  // Realizar Raycast sobre pines activos
+  const activePinsGroup = (currentMode === 'schools') ? pinsGroup : orgPinsGroup;
+  const activeInteractionMeshes = pinInteractionMeshes.filter(mesh => {
+    if (currentMode === 'schools') return mesh.userData.isSchool === true;
+    return mesh.userData.isOrg === true;
+  });
+
+  const pinIntersects = raycaster.intersectObjects(activeInteractionMeshes);
   
   if (pinIntersects.length > 0) {
     const clickedSensor = pinIntersects[0].object;
-    const schoolId = clickedSensor.userData.schoolId;
-    const school = schoolsData.find(s => s.id === schoolId);
     
-    if (school) {
-      // Activar tooltip
-      tooltip.classList.remove('hidden');
-      tooltip.style.left = `${event.clientX}px`;
-      tooltip.style.top = `${event.clientY}px`;
-      tooltip.innerHTML = `
-        <div style="font-weight:bold;color:${school.color}">${school.name}</div>
-        <div style="font-size:11px;color:#94a3b8">${school.specialty} - ${school.department}</div>
-      `;
-      
-      // Resaltar pin
-      const parent = clickedSensor.userData.parentGroup;
-      if (parent) {
-        parent.userData.head.scale.set(1.2, 1.2, 1.2);
+    if (currentMode === 'schools') {
+      const schoolId = clickedSensor.userData.schoolId;
+      const school = schoolsData.find(s => s.id === schoolId);
+      if (school) {
+        tooltip.classList.remove('hidden');
+        tooltip.style.left = `${event.clientX}px`;
+        tooltip.style.top = `${event.clientY}px`;
+        tooltip.innerHTML = `
+          <div style="font-weight:bold;color:${school.color}">${school.name}</div>
+          <div style="font-size:11px;color:#94a3b8">${school.specialty} - ${school.department}</div>
+        `;
+        
+        clickedSensor.userData.parentGroup.userData.head.scale.set(1.2, 1.2, 1.2);
+        
+        if (window.lastHoveredItem !== schoolId) {
+          sounds.playHover();
+          window.lastHoveredItem = schoolId;
+        }
+        document.body.style.cursor = 'pointer';
+        return;
       }
+    } else {
+      // Modo Orgánico
+      const unitId = clickedSensor.userData.unitId;
+      const unitType = clickedSensor.userData.orgType;
       
-      if (hoveredDepartment) {
-        resetDepartmentHighlight(hoveredDepartment);
-        hoveredDepartment = null;
+      let unitName = "";
+      let unitDesc = "";
+      
+      if (unitType === 'division') {
+        const div = orgData.divisiones.find(d => d.id === unitId);
+        if (div) {
+          unitName = div.nombre;
+          unitDesc = `Sede: C.G. ${div.cuartel_general}`;
+        }
+      } else {
+        orgData.divisiones.forEach(d => {
+          d.brigadas.forEach(br => {
+            const bat = br.batallones.find(bt => bt.id === unitId);
+            if (bat) {
+              unitName = bat.nombre;
+              unitDesc = `Batallón de Combate - ${d.cuartel_general}`;
+            }
+          });
+        });
       }
-      
-      // Reproducir sonido hover (una sola vez)
-      if (window.lastHoveredItem !== schoolId) {
-        sounds.playHover();
-        window.lastHoveredItem = schoolId;
+
+      if (unitName) {
+        tooltip.classList.remove('hidden');
+        tooltip.style.left = `${event.clientX}px`;
+        tooltip.style.top = `${event.clientY}px`;
+        tooltip.innerHTML = `
+          <div style="font-weight:bold;color:var(--neon-cyan)">${unitName}</div>
+          <div style="font-size:11px;color:#94a3b8">${unitDesc}</div>
+        `;
+        
+        clickedSensor.userData.parentGroup.userData.head.scale.set(1.2, 1.2, 1.2);
+        
+        if (window.lastHoveredItem !== unitId) {
+          sounds.playHover();
+          window.lastHoveredItem = unitId;
+        }
+        document.body.style.cursor = 'pointer';
+        return;
       }
-      
-      // Cambiar cursor táctico
-      document.body.style.cursor = 'pointer';
-      return;
     }
   }
 
-  // Quitar escala aumentada de los pines no seleccionados/hovered
-  pinsGroup.children.forEach(p => {
-    if (!selectedSchool || p.userData.schoolId !== selectedSchool.id) {
+  // Desescalar pines no hovered
+  activePinsGroup.children.forEach(p => {
+    const isSelected = (currentMode === 'schools') 
+      ? (selectedSchool && p.userData.schoolId === selectedSchool.id)
+      : (selectedOrgUnit && p.userData.unitId === selectedOrgUnit.id);
+      
+    if (!isSelected) {
       p.userData.head.scale.set(1, 1, 1);
     }
   });
   
-  // 2. Raycast para departamentos del mapa
+  // Raycast sobre mallas del mapa (Departamentos)
   const mapIntersects = raycaster.intersectObjects(departmentMeshes);
   
   if (mapIntersects.length > 0) {
@@ -1348,73 +2334,146 @@ function onMouseMove(event) {
     
     document.body.style.cursor = 'pointer';
     
-    if (hoveredDepartment !== normName) {
-      // Limpiar anterior
-      if (hoveredDepartment) resetDepartmentHighlight(hoveredDepartment);
-      
-      // Resaltar actual
-      const data = departmentsData[normName];
-      if (data) {
-        data.meshes.forEach(m => {
-          m.material.emissive.setHex(0x0c3a2f); // verde oscuro sutil
-        });
+    if (currentMode === 'schools') {
+      // Modo Escuelas: Resaltar departamento individual
+      if (hoveredDepartment !== normName) {
+        if (hoveredDepartment) resetDepartmentHighlight(hoveredDepartment);
+        
+        const data = departmentsData[normName];
+        if (data) {
+          data.meshes.forEach(m => m.material.emissive.setHex(0x0c3a2f));
+        }
+        
+        hoveredDepartment = normName;
+        addConsoleLog(`APUNTANDO ESCANER TÁCTICO A SECTOR: ${normName}`, "yellow");
+        sounds.playHover();
+        window.lastHoveredItem = deptName;
       }
       
-      hoveredDepartment = normName;
-      
-      // Loggear en consola
-      addConsoleLog(`APUNTANDO SENSOR GEO-ESPACIAL A SECTOR: ${normName}`, "yellow");
-      sounds.playHover();
-      window.lastHoveredItem = deptName;
+      const count = departmentsData[normName] ? departmentsData[normName].count : 0;
+      tooltip.classList.remove('hidden');
+      tooltip.style.left = `${event.clientX}px`;
+      tooltip.style.top = `${event.clientY}px`;
+      tooltip.innerHTML = `
+        <div style="font-weight:bold;color:var(--neon-green)">SECTOR: ${normName}</div>
+        <div style="font-size:11px;color:#94a3b8">${count} Escuela(s) Detectada(s)</div>
+      `;
+    } else {
+      // Modo Orgánico: Resaltar jurisdicción de división agrupada
+      // Buscar a qué división pertenece este departamento
+      let divId = null;
+      let divName = "";
+      if (jurisdiccionData) {
+        const division = jurisdiccionData.ejercito_peru_jurisdicciones.divisiones.find(d => 
+          d.departamentos_abarcados.map(dep => normalizeString(dep)).includes(normName)
+        );
+        if (division) {
+          divId = division.id_division;
+          divName = division.nombre;
+        }
+      }
+
+      if (divId) {
+        if (hoveredDepartment !== divId) {
+          highlightDivisionJurisdiction(divId);
+          hoveredDepartment = divId; // Guardamos el ID de la división como hovered
+          addConsoleLog(`SECTOR SOBRE JURISDICCIÓN: ${divName.toUpperCase()}`, "yellow");
+          sounds.playHover();
+          window.lastHoveredItem = divId;
+        }
+
+        tooltip.classList.remove('hidden');
+        tooltip.style.left = `${event.clientX}px`;
+        tooltip.style.top = `${event.clientY}px`;
+        tooltip.innerHTML = `
+          <div style="font-weight:bold;color:var(--neon-cyan)">JURISDICCIÓN SECTOR</div>
+          <div style="font-size:11px;color:#94a3b8">${divName}</div>
+          <div style="font-size:10px;color:rgba(16, 185, 129, 0.7)">Clic para desplegar brigadas</div>
+        `;
+      }
     }
-    
-    // Activar tooltip
-    const count = departmentsData[normName] ? departmentsData[normName].count : 0;
-    tooltip.classList.remove('hidden');
-    tooltip.style.left = `${event.clientX}px`;
-    tooltip.style.top = `${event.clientY}px`;
-    tooltip.innerHTML = `
-      <div style="font-weight:bold;color:var(--neon-green)">SECTOR: ${normName}</div>
-      <div style="font-size:11px;color:#94a3b8">${count} Escuela(s) Detectada(s)</div>
-    `;
   } else {
-    // Si no toca nada
     document.body.style.cursor = 'default';
     tooltip.classList.add('hidden');
+    
     if (hoveredDepartment) {
-      resetDepartmentHighlight(hoveredDepartment);
+      if (currentMode === 'schools') {
+        resetDepartmentHighlight(hoveredDepartment);
+      } else {
+        // En modo orgánico apagar emisivos si no hay unidad seleccionada
+        if (!selectedOrgUnit) {
+          Object.keys(departmentsData).forEach(deptName => {
+            departmentsData[deptName].meshes.forEach(mesh => {
+              mesh.material.emissive.setHex(0x021626);
+              mesh.material.opacity = 0.82;
+            });
+          });
+        } else {
+          // Mantener resaltado de la unidad seleccionada
+          highlightDivisionJurisdiction(selectedOrgUnit.parentDivision.id);
+        }
+      }
       hoveredDepartment = null;
       window.lastHoveredItem = null;
     }
   }
 }
 
-// Clics del Mouse
+// Clics del Ratón
 function onClick(event) {
-  // Descartar clics si se hacen sobre elementos HTML del HUD
   if (event.target.tagName !== 'CANVAS' || event.target.id !== 'canvas-container' && event.target.parentNode.id !== 'canvas-container') {
     return;
   }
   
   raycaster.setFromCamera(mouse, camera);
   
-  // 1. Verificar clic en pin
-  const pinIntersects = raycaster.intersectObjects(pinInteractionMeshes);
+  const activeInteractionMeshes = pinInteractionMeshes.filter(mesh => {
+    if (currentMode === 'schools') return mesh.userData.isSchool === true;
+    return mesh.userData.isOrg === true;
+  });
+
+  const pinIntersects = raycaster.intersectObjects(activeInteractionMeshes);
   if (pinIntersects.length > 0) {
     sounds.playClick();
-    tooltip.classList.add('hidden'); // Kiosk Mode: Ocultar tooltip al tocar
-    const schoolId = pinIntersects[0].object.userData.schoolId;
-    selectSchool(schoolId);
+    tooltip.classList.add('hidden');
+    const sensor = pinIntersects[0].object;
+    
+    if (currentMode === 'schools') {
+      selectSchool(sensor.userData.schoolId);
+    } else {
+      selectOrganicUnit(sensor.userData.orgType, sensor.userData.unitId);
+    }
     return;
   }
   
-  // 2. Verificar clic en departamento
   const mapIntersects = raycaster.intersectObjects(departmentMeshes);
   if (mapIntersects.length > 0) {
     sounds.playClick();
-    tooltip.classList.add('hidden'); // Kiosk Mode: Ocultar tooltip al tocar
+    tooltip.classList.add('hidden');
     const deptName = mapIntersects[0].object.userData.deptName;
-    selectDepartment(deptName);
+    const normName = normalizeString(deptName);
+
+    if (currentMode === 'schools') {
+      selectDepartment(deptName);
+    } else {
+      // Clic en departamento en modo orgánico: Seleccionar su división respectiva
+      let divId = null;
+      if (jurisdiccionData) {
+        const division = jurisdiccionData.ejercito_peru_jurisdicciones.divisiones.find(d => 
+          d.departamentos_abarcados.map(dep => normalizeString(dep)).includes(normName)
+        );
+        if (division) divId = division.id_division;
+      }
+      if (divId) {
+        // Buscar el nodo en el árbol orgánico y activarlo
+        const node = document.querySelector(`.tree-node[data-id="${divId}"]`);
+        if (node) {
+          node.classList.add('expanded');
+          node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        selectOrganicUnit('division', divId);
+      }
+    }
   }
 }
 
@@ -1427,8 +2486,6 @@ function startHUDClock() {
     const hrs = pad(now.getHours());
     const mins = pad(now.getMinutes());
     const secs = pad(now.getSeconds());
-    
-    // Centésimas de segundo (milisegundos / 10)
     const ms = pad(Math.floor(now.getMilliseconds() / 10));
     
     clockDisplay.textContent = `${hrs}:${mins}:${secs}:${ms}`;
@@ -1437,27 +2494,24 @@ function startHUDClock() {
 
 // --- KIOSK MODE: INACTIVITY TIMEOUT ---
 let inactivityTimer = null;
-const INACTIVITY_LIMIT = 60000; // 60 segundos de inactividad para resetear
+const INACTIVITY_LIMIT = 60000;
 
 function resetInactivityTimer() {
   if (inactivityTimer) clearTimeout(inactivityTimer);
   inactivityTimer = setTimeout(() => {
-    // Si han pasado 60 segundos, reiniciar a vista global
-    if (selectedSchool || hoveredDepartment) {
-      addConsoleLog("SISTEMA RESETEADO POR INACTIVIDAD (MODO KIOSCO).", "yellow");
+    if (selectedSchool || selectedOrgUnit || hoveredDepartment) {
+      addConsoleLog("SISTEMA RESTABLECIDO POR INACTIVIDAD (MODO KIOSCO).", "yellow");
       btnReset.click();
     }
     
-    // Ocultar buscador si estuviera activo para ocultar el teclado virtual
     if (searchInput && document.activeElement === searchInput) {
       searchInput.blur();
       searchInput.value = '';
-      searchInput.dispatchEvent(new Event('input')); // Limpiar filtro
+      searchInput.dispatchEvent(new Event('input'));
     }
   }, INACTIVITY_LIMIT);
 }
 
-// Escuchar eventos globales para resetear el temporizador de inactividad
 window.addEventListener('mousemove', resetInactivityTimer, { passive: true });
 window.addEventListener('mousedown', resetInactivityTimer, { passive: true });
 window.addEventListener('touchstart', resetInactivityTimer, { passive: true });
@@ -1472,24 +2526,16 @@ function animate() {
   requestAnimationFrame(animate);
   
   const delta = clock.getDelta();
-  
-  // Actualizar controles 3D
   controls.update();
   
-  // Animar cámara e interpolaciones suavemente
   camera.position.lerp(targetCameraPos, 0.06);
   currentCameraLookAt.lerp(targetCameraLookAt, 0.06);
   controls.target.copy(currentCameraLookAt);
   
-  // Animar elementos visuales de los pines
   animatePins(delta);
-  
-  // Actualizar posiciones 2D de las etiquetas HTML flotantes
   updateLabels();
   
-  // Render de la escena
   renderer.render(scene, camera);
 }
 
-// Ejecutar inicialización
 window.addEventListener('DOMContentLoaded', init);
