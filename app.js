@@ -1283,6 +1283,16 @@ function selectSchool(schoolId) {
     logoEl.src = '';
   }
 
+  // Reseña del Escudo
+  const logoResenaEl = document.getElementById('school-logo-resena');
+  if (logoResenaEl) {
+    if (school.escudoResena) {
+      logoResenaEl.innerHTML = `<strong>ESCUDO • SIGNIFICADO</strong>${school.escudoResena}`;
+    } else {
+      logoResenaEl.innerHTML = '';
+    }
+  }
+
   const imgEl = document.getElementById('school-img');
   const videoEl = document.getElementById('school-video');
   if (school.video) {
